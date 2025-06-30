@@ -2,6 +2,7 @@ import React from "react";
 import { createContext, useState, ReactNode } from "react";
 import axios from "axios";
 import { api } from "@/api";
+import { Alert } from "react-native";
 
 type User = {
   id: number;
@@ -35,33 +36,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-
+    console.log("Attempting to login with email:", email);
+    console.log(api)
     try {
-      const response = await axios.post(`${api}session`, {
-        email,
-        password,
-      });
+      const response = await axios.post(
+        `${api}/session`,
+        { email, password },
+        { timeout: 10000 } // 10 segundos
+      );
+      console.log("Login response:", response.data);
+      // const userData = response.data.user;
+      // const accessToken = userData.token.token;
 
-      const userData = response.data.user;
-      const accessToken = userData.token.token;
-
-      if (accessToken) {
-        setUser(userData);
-        setToken(accessToken);
-        axios.defaults.headers.common[
-          "Authorization"
-        ] = `Bearer ${accessToken}`;
-      } else {
-        throw new Error("No access token received");
-      }
+      // if (accessToken) {
+      //   setUser(userData);
+      //   setToken(accessToken);
+      //   axios.defaults.headers.common[
+      //     "Authorization"
+      //   ] = `Bearer ${accessToken}`;
+      // } else {
+      //   throw new Error("No access token received");
+      // }
     } catch (error) {
       let errorMessage = "Ocorreu um erro durante o login";
 
       if (axios.isAxiosError(error)) {
         console.error("Axios error:", error.response?.data);
         errorMessage = error.response?.data?.message || error.message;
+
+        // No catch do login
+        if (error.code === 'ECONNABORTED') {
+          setError('Tempo de resposta excedido. Tente novamente mais tarde.');
+          Alert.alert('Erro', 'Tempo de resposta excedido. Tente novamente mais tarde.');
+        }
       } else if (error instanceof Error) {
         console.error("Login error:", error);
         errorMessage = error.message;

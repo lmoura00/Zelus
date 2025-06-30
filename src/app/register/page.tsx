@@ -108,11 +108,12 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const response = await axios.post(`${api}/user`, {
+        name: name.trim(),
         cpf: cpf.replace(/\D/g, ""),
         email: email.trim(),
         password,
       });
-      console.log("Response:", response.data);
+      console.log("Response:", response.status, response.data);
       if (response.status !== 201) {
         alert("Erro ao cadastrar usuário. Tente novamente.");
         return;
@@ -120,9 +121,21 @@ export default function RegisterPage() {
       setLoading(false);
       alert("Usuário cadastrado com sucesso!");
       router.replace("/login/page");
-    } catch (error) {
-      console.error("Error during registration:", error);
+    } catch (error: any) {
       setLoading(false);
+      if (error.response) {
+        if (error.response.status === 500) {
+          alert("Usuário já cadastrado.");
+        } else if (error.response.status === 422) {
+          alert("CPF inválido.");
+        } else {
+          alert("Erro ao cadastrar usuário. Tente novamente.");
+        }
+      } else {
+        alert("Erro ao cadastrar usuário. Tente novamente.");
+      }
+      console.error("Error during registration:", error);
+      console.log("Error response:", error);
     }
   };
 
@@ -169,7 +182,7 @@ export default function RegisterPage() {
           placeholderTextColor="#918CBC"
           keyboardType="numeric"
           value={cpf}
-          maxLength={12}
+          maxLength={11}
           onChangeText={(value) => {
             setCpf(value);
             validateCpf(value);

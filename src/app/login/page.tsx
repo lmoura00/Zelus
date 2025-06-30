@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { use, useState } from 'react'
 import {
   View,
   Text,
@@ -12,32 +12,37 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Feather, FontAwesome } from '@expo/vector-icons'
-
+import {useAuth} from '@/hooks/use-user'
 
 const { width, height } = Dimensions.get('window')
 const CARD_WIDTH = width * 0.85       
 const CARD_PADDING = 24               
 
 export default function LoginPage() {
-
+  const {login} = useAuth()
   const router = useRouter()           
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
  
-  const handleLogin = () => {
-   
+  const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Erro', 'Preencha email e senha.')
       return
     }
-    
+    console.log('Tentando login com email:', email)
+    console.log('Tentando login com senha:', password)
     setLoading(true)
-    setTimeout(() => {
+    try {
+      await login(email, password)
       setLoading(false)
-      router.replace('/(protected)/home/page')  
-    }, 800)
+      router.replace('/(protected)/home/page')
+    } catch (error) {
+      setLoading(false)
+      Alert.alert('Erro', 'Email ou senha inválidos.')
+      console.error('Login error:', error)
+    }
   }
 
   return (
