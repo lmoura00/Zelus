@@ -35,28 +35,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = async (email: string, password: string) => {
-    console.log("Attempting to login with email:", email);
+  const login = async (username: string, password: string) => {
+    console.log("Attempting to login with email:", username);
     console.log(api)
     try {
       const response = await axios.post(
-        `${api}/session`,
-        { email, password },
-        { timeout: 10000 } // 10 segundos
+        `${api}/login`,
+        { username, password },
+        { timeout: 10000 } 
       );
       console.log("Login response:", response.data);
-      // const userData = response.data.user;
-      // const accessToken = userData.token.token;
+      const userData = response.data;
+      const accessToken = userData.accessToken;
+      console.log("Access token:", accessToken);
 
-      // if (accessToken) {
-      //   setUser(userData);
-      //   setToken(accessToken);
-      //   axios.defaults.headers.common[
-      //     "Authorization"
-      //   ] = `Bearer ${accessToken}`;
-      // } else {
-      //   throw new Error("No access token received");
-      // }
+      if (accessToken) {
+         setUser(userData);
+         setToken(accessToken);
+         axios.defaults.headers.common[
+           "Authorization"
+         ] = `Bearer ${accessToken}`;
+       } else {
+         throw new Error("No access token received");
+       }
     } catch (error) {
       let errorMessage = "Ocorreu um erro durante o login";
 

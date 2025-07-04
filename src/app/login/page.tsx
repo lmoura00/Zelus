@@ -21,8 +21,8 @@ const CARD_PADDING = 24
 export default function LoginPage() {
   const {login} = useAuth()
   const router = useRouter()           
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('emilys')
+  const [password, setPassword] = useState('emilyspass')
   const [loading, setLoading] = useState(false)
 
  

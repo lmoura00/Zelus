@@ -1,1 +1,1 @@
-export const api =  "https://infra-timon-on.onrender.com"
+export const api =  "https://dummyjson.com/auth/"

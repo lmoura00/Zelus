@@ -66,7 +66,7 @@ const DATA = [
   },
 ]
 
-export default function Home() {
+const HomePage = () => {
   // Hooks para navegação e rota atual
   const router = useRouter()
   const segments = useSegments()
@@ -251,24 +251,7 @@ export default function Home() {
         </View>
       </Modal>
 
-      {/* BOTTOM TAB BAR */}
-      <View style={styles.tabBar}>
-        {/* Início */}
-        <TouchableOpacity style={[styles.tabItem, segments[0] === 'home' && styles.activeTabItem]} onPress={() => router.replace('/home/page')}>
-          <MaterialCommunityIcons name="home" size={24} color={segments[0] === 'home' ? '#291F75' : '#FFFFFF'} />
-          <Text style={[styles.tabText, segments[0] === 'home' ? styles.tabActiveText : styles.tabInactiveText]}>Início</Text>
-        </TouchableOpacity>
-        {/* Solicitações */}
-        <TouchableOpacity style={[styles.tabItem, segments[0] === 'Solicitacoes' && styles.activeTabItem]} onPress={() => router.push('/Solicitacoes')}>
-          <MaterialCommunityIcons name="clipboard-list-outline" size={24} color={segments[0] === 'Solicitacoes' ? '#291F75' : '#FFFFFF'} />
-          <Text style={[styles.tabText, segments[0] === 'Solicitacoes' ? styles.tabActiveText : styles.tabInactiveText]}>Solicitações</Text>
-        </TouchableOpacity>
-        {/* Conta */}
-        <TouchableOpacity style={[styles.tabItem, segments[0] === 'Conta' && styles.activeTabItem]} onPress={() => router.push('/Conta')}>
-          <MaterialCommunityIcons name="account-outline" size={24} color={segments[0] === 'Conta' ? '#291F75' : '#FFFFFF'} />
-          <Text style={[styles.tabText, segments[0] === 'Conta' ? styles.tabActiveText : styles.tabInactiveText]}>Conta</Text>
-        </TouchableOpacity>
-      </View>
+
     </View>
   )
 }
@@ -331,3 +314,4 @@ const styles = StyleSheet.create({
   tabActiveText: { color: '#291F75' },
   tabInactiveText: { color: '#FFFFFF' },
 })
+export default HomePage

@@ -14,9 +14,9 @@ import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 const { width } = Dimensions.get("window");
 const TAB_WIDTH = width / 3;
 
-export default function Conta() {
+const ContaPage = () => {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.ContaPageiner}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Zelus</Text>
@@ -60,28 +60,8 @@ export default function Conta() {
         />
         <MenuItem
           icon={<Ionicons name="log-out-outline" size={20} color="#291f75" />}
-          label="Sair da Conta"
+          label="Sair da ContaPage"
         />
-      </View>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="home-outline" size={24} color="#B0A8E8" />
-          <Text style={styles.tabLabel}>Início</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <MaterialCommunityIcons
-            name="file-document-outline"
-            size={24}
-            color="#B0A8E8"
-          />
-          <Text style={styles.tabLabel}>Solicitações</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabActive}>
-          <Ionicons name="person-outline" size={24} color="#FFFFFF" />
-          <Text style={[styles.tabLabel, { color: "#FFFFFF" }]}>Conta</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -98,7 +78,7 @@ function MenuItem({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  ContaPageiner: { flex: 1, backgroundColor: "#FFFFFF" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -190,3 +170,5 @@ const styles = StyleSheet.create({
     color: "#B0A8E8",
   },
 });
+
+export default ContaPage;

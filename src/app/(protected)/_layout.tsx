@@ -1,18 +1,18 @@
-
 import React, { useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { Tabs, useRouter, useSegments } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { AuthContext } from '@/context/user-context'; 
+import { Tabs, useRouter } from 'expo-router';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { AuthContext } from '@/context/user-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ProtectedLayout() {
   const router = useRouter();
-  const segments = useSegments();
-  const { user, isLoading } = useContext(AuthContext); 
-  useEffect(() => {
+  const { user, isLoading } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
 
+  useEffect(() => {
     if (!user && !isLoading) {
       router.replace('/login/page');
     }
@@ -25,134 +25,146 @@ export default function ProtectedLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false, 
-        tabBarShowLabel: false, 
-        tabBarStyle: styles.tabBar,
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: [styles.tabBar, { height: 75 + insets.bottom }],
+        contentStyle: { paddingBottom: 75 + insets.bottom }, // Adiciona padding para o conteúdo
       }}
-      tabBar={({ state, descriptors, navigation }) => {
-        return (
-          <View style={styles.tabBar}>
-            {state.routes.map((route, index) => {
-              const { options } = descriptors[route.key];
-              const label =
-                options.tabBarLabel !== undefined
-                  ? options.tabBarLabel
-                  : options.title !== undefined
-                  ? options.title
-                  : route.name;
+      sceneContainerStyle={{ paddingBottom: 75 + insets.bottom }} // Garante que as cenas tenham espaço
+      tabBar={({ state, descriptors, navigation }) => (
+        <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
+          {state.routes.map((route, index) => {
+            const isFocused = state.index === index;
+            let iconName = 'help-circle';
+            let tabLabel = '';
 
-              const isFocused = state.index === index;
+            switch (route.name) {
+              case 'home/page':
+                iconName = 'home';
+                tabLabel = 'Início';
+                break;
+              case 'solicitacoes/page':
+                iconName = 'clipboard-list-outline';
+                tabLabel = 'Solicitações';
+                break;
+              case 'conta/page':
+                iconName = 'account-outline';
+                tabLabel = 'Conta';
+                break;
+              default:
+                iconName = 'help-circle';
+                tabLabel = route.name;
+                break;
+            }
 
-              const onPress = () => {
-                const event = navigation.emit({
-                  type: 'tabPress',
-                  target: route.key,
-                  canPreventDefault: true,
-                });
+            const iconColor = isFocused ? '#FFFFFF' : '#B0A8E8';
+            const textColor = isFocused ? '#FFFFFF' : '#B0A8E8';
+            const tabItemStyle = isFocused ? styles.tabActive : styles.tab;
 
-                if (!isFocused && !event.defaultPrevented) {
-                  if (route.name === 'home') {
-                    router.replace('/(protected)/home/page'); 
-                  } else if (route.name === 'Solicitacoes') { // Use o nome da rota (pasta)
-                    router.push('/(protected)/solicitacoes/page'); // Exemplo: push para solicitações
-                  } else if (route.name === 'Conta') { // Use o nome da rota (pasta)
-                    router.push('/(protected)/conta/page'); // Exemplo: push para conta
-                  } else {
-                    router.push(`/${route.name}`); // Default para outras rotas se houver
-                  }
-                }
-              };
-
-              // Determina o ícone e a cor com base na rota e no foco
-              let iconName: keyof typeof MaterialCommunityIcons.glyphMap = 'help-circle'; // Fallback icon
-              let tabLabel = '';
-
-              switch (route.name) {
-                case 'home': // Corresponde ao nome da pasta 'home'
-                  iconName = 'home';
-                  tabLabel = 'Início';
-                  break;
-                case 'Solicitacoes': // Corresponde ao nome da pasta 'Solicitacoes'
-                  iconName = 'clipboard-list-outline';
-                  tabLabel = 'Solicitações';
-                  break;
-                case 'Conta': // Corresponde ao nome da pasta 'Conta'
-                  iconName = 'account-outline';
-                  tabLabel = 'Conta';
-                  break;
-                // Adicione outros casos conforme suas rotas
+            const onPress = () => {
+              if (!isFocused) {
+                navigation.navigate(route.name);
               }
+            };
 
-              const iconColor = isFocused ? '#291F75' : '#FFFFFF';
-              const textColor = isFocused ? styles.tabActiveText.color : styles.tabInactiveText.color;
-              const tabItemStyle = isFocused ? styles.activeTabItem : {};
-
-              return (
-                <TouchableOpacity
-                  key={route.key}
-                  accessibilityRole="button"
-                  accessibilityState={isFocused ? { selected: true } : {}}
-                  accessibilityLabel={options.tabBarAccessibilityLabel}
-                  onPress={onPress}
-                  style={[styles.tabItem, tabItemStyle]}
-                >
-                  <MaterialCommunityIcons name={iconName} size={24} color={iconColor} />
-                  <Text style={[styles.tabText, { color: textColor }]}>
-                    {tabLabel}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        );
-      }}
+            return (
+              <TouchableOpacity
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                onPress={onPress}
+                style={tabItemStyle}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name={iconName} size={28} color={iconColor} />
+                <Text style={[styles.tabLabel, { color: textColor }]}>{tabLabel}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     >
-      {/* Defina suas abas aqui. O `name` DEVE corresponder ao nome da pasta ou arquivo da rota. */}
-      <Tabs.Screen name="home" /> {/* Corresponde a src/app/(protected)/home/page.tsx */}
-      <Tabs.Screen name="Solicitacoes" /> {/* Corresponde a src/app/(protected)/Solicitacoes/page.tsx */}
-      <Tabs.Screen name="Conta" /> {/* Corresponde a src/app/(protected)/Conta/page.tsx */}
-      {/* Se você tiver outras rotas dentro de (protected), adicione-as aqui */}
-      {/* Exemplo: <Tabs.Screen name="settings" /> */}
+      <Tabs.Screen 
+        name="home" 
+        options={{
+          contentStyle: { paddingBottom: 75 + insets.bottom },
+        }}
+      />
+      <Tabs.Screen 
+        name="solicitacoes" 
+        options={{
+          contentStyle: { paddingBottom: 75 + insets.bottom },
+        }}
+      />
+      <Tabs.Screen 
+        name="conta" 
+        options={{
+          contentStyle: { paddingBottom: 75 + insets.bottom },
+        }}
+      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
+  tabBarContainer: {
     flexDirection: 'row',
     backgroundColor: '#291F75',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingVertical: 12,
-    justifyContent: 'space-around',
-    elevation: 8, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    overflow: 'hidden',
+    height: 75,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 2,
+    borderTopColor: '#3E2A9E',
   },
-  tabItem: {
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#291F75',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 2,
+    borderTopColor: '#3E2A9E',
+  },
+  tab: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
   },
-  activeTabItem: {
-    backgroundColor: '#FFF',
+  tabActive: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'rgba(62, 42, 158, 0.3)',
+    borderRadius: 15,
+    marginHorizontal: 5,
+    transform: [{ scale: 1.05 }],
   },
-  tabText: {
-    fontFamily: 'Nunito-Bold',
-    fontSize: 12,
+  tabLabel: {
     marginTop: 4,
-  },
-  tabActiveText: {
-    color: '#291F75',
-  },
-  tabInactiveText: {
-    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'System',
+    fontWeight: '600',
   },
 });

@@ -27,7 +27,7 @@ interface Solicitacao {
   imagem: string;
 }
 
-const solicitacoes = () => {
+const SolicitacoesPage = () => {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
 
   const adicionarSolicitacao = () => {
@@ -106,27 +106,7 @@ const solicitacoes = () => {
         <Ionicons name="add" size={32} color="#291f75" />
       </TouchableOpacity>
 
-      {/* Navegação inferior */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="home-outline" size={24} color="#B0A8E8" />
-          <Text style={styles.tabLabel}>Início</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabActive}>
-          <MaterialCommunityIcons
-            name="file-document-outline"
-            size={24}
-            color="#FFFFFF"
-          />
-          <Text style={[styles.tabLabel, { color: "#FFFFFF" }]}>
-            Solicitações
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="person-outline" size={24} color="#B0A8E8" />
-          <Text style={styles.tabLabel}>Conta</Text>
-        </TouchableOpacity>
-      </View>
+    
     </SafeAreaView>
   );
 }
@@ -245,4 +225,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default solicitacoes;
+export default SolicitacoesPage;
