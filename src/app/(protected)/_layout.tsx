@@ -1,11 +1,10 @@
+// app/(protected)/_layout.tsx
 import React, { useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { AuthContext } from '@/context/user-context';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProtectedLayout() {
   const router = useRouter();
@@ -14,7 +13,7 @@ export default function ProtectedLayout() {
 
   useEffect(() => {
     if (!user && !isLoading) {
-      router.replace('/login/page');
+      router.replace('/Login/page');
     }
   }, [user, isLoading, router]);
 
@@ -22,40 +21,43 @@ export default function ProtectedLayout() {
     return null;
   }
 
+  const TAB_BAR_HEIGHT = 75;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: [styles.tabBar, { height: 75 + insets.bottom }],
-        contentStyle: { paddingBottom: 75 + insets.bottom }, // Adiciona padding para o conteúdo
+        contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
       }}
-      sceneContainerStyle={{ paddingBottom: 75 + insets.bottom }} // Garante que as cenas tenham espaço
+      sceneContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + insets.bottom }} 
       tabBar={({ state, descriptors, navigation }) => (
-        <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
-          {state.routes.map((route, index) => {
-            const isFocused = state.index === index;
-            let iconName = 'help-circle';
-            let tabLabel = '';
-
-            switch (route.name) {
-              case 'home/page':
-                iconName = 'home';
-                tabLabel = 'Início';
-                break;
-              case 'solicitacoes/page':
-                iconName = 'clipboard-list-outline';
-                tabLabel = 'Solicitações';
-                break;
-              case 'conta/page':
-                iconName = 'account-outline';
-                tabLabel = 'Conta';
-                break;
-              default:
-                iconName = 'help-circle';
-                tabLabel = route.name;
-                break;
+        <View 
+          style={[
+            styles.tabBarContainer, 
+            { 
+              bottom: 0, 
+              height: TAB_BAR_HEIGHT + insets.bottom, 
+              paddingBottom: insets.bottom 
             }
+          ]}
+        >
+          {state.routes.map((route, index) => {
+            const intendedTabs = {
+              'Home/page': { icon: 'home', label: 'Início' },
+              'Solicitacoes/page': { icon: 'clipboard-list-outline', label: 'Solicitações' },
+              'Conta/page': { icon: 'account-outline', label: 'Conta' },
+            };
+
+            const tabInfo = intendedTabs[route.name as keyof typeof intendedTabs];
+            
+            if (!tabInfo) {
+              return null;
+            }
+
+            const isFocused = state.index === index;
+            const iconName = tabInfo.icon;
+            const tabLabel = tabInfo.label;
 
             const iconColor = isFocused ? '#FFFFFF' : '#B0A8E8';
             const textColor = isFocused ? '#FFFFFF' : '#B0A8E8';
@@ -76,7 +78,7 @@ export default function ProtectedLayout() {
                 style={tabItemStyle}
                 activeOpacity={0.7}
               >
-                <MaterialCommunityIcons name={iconName} size={28} color={iconColor} />
+                <MaterialCommunityIcons name={iconName as any} size={28} color={iconColor} />
                 <Text style={[styles.tabLabel, { color: textColor }]}>{tabLabel}</Text>
               </TouchableOpacity>
             );
@@ -85,21 +87,28 @@ export default function ProtectedLayout() {
       )}
     >
       <Tabs.Screen 
-        name="home" 
+        name="Home/page" 
         options={{
-          contentStyle: { paddingBottom: 75 + insets.bottom },
+          contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
         }}
       />
       <Tabs.Screen 
-        name="solicitacoes" 
+        name="Solicitacoes/page" 
         options={{
-          contentStyle: { paddingBottom: 75 + insets.bottom },
+          contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
         }}
       />
       <Tabs.Screen 
-        name="conta" 
+        name="Conta/page" 
         options={{
-          contentStyle: { paddingBottom: 75 + insets.bottom },
+          contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
+        }}
+      />
+      <Tabs.Screen 
+        name="SolicitacaoItem/[id]" 
+        options={{
+          href: null,
+          headerShown: false, 
         }}
       />
     </Tabs>
@@ -113,32 +122,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     overflow: 'hidden',
-    height: 75,
     elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopWidth: 2,
-    borderTopColor: '#3E2A9E',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#291F75',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     borderTopWidth: 2,

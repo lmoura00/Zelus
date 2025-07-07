@@ -120,7 +120,7 @@ export default function RegisterPage() {
       }
       setLoading(false);
       alert("Usuário cadastrado com sucesso!");
-      router.replace("/login/page");
+      router.replace("/Login/page");
     } catch (error: any) {
       setLoading(false);
       if (error.response) {

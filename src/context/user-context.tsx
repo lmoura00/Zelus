@@ -1,23 +1,35 @@
-import React from "react";
-import { createContext, useState, ReactNode } from "react";
-import axios from "axios";
+import React, { createContext, useState, useEffect, ReactNode } from "react";
+import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from "axios";
 import { api } from "@/api";
 import { Alert } from "react-native";
 
-type User = {
+type UserData = {
   id: number;
   name: string;
   email: string;
   cpf: string;
 };
 
+type AuthResponse = {
+  user: UserData;
+  token: {
+    token: string;
+  };
+};
+
 type AuthContextType = {
-  user: User | null;
+  user: UserData | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   error: string | null;
+  authenticatedRequest: <T = any>(
+    method: AxiosRequestConfig["method"],
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ) => Promise<AxiosResponse<T>>;
 };
 
 export const AuthContext = createContext<AuthContextType>({
@@ -27,55 +39,70 @@ export const AuthContext = createContext<AuthContextType>({
   logout: () => {},
   isLoading: false,
   error: null,
+  authenticatedRequest: async () => {
+    throw new Error("authenticatedRequest not implemented");
+  },
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserData | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const axiosInstance: AxiosInstance = axios.create();
+
+  axiosInstance.interceptors.request.use(
+    (config) => {
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (err) => Promise.reject(err)
+  );
+
+  axiosInstance.interceptors.response.use(
+    (response) => response,
+    (err) => {
+      if (err.response?.status === 401 && err.config?.url !== `${api}/session`) {
+        Alert.alert("Sessão Expirada", "Sua sessão expirou. Por favor, faça login novamente.");
+        logout();
+      }
+      return Promise.reject(err);
+    }
+  );
+
   const login = async (email: string, password: string) => {
-    console.log("Attempting to login with email:", email);
-    console.log(api)
+    setIsLoading(true);
+    setError(null);
     try {
-      const response = await axios.post(
+      const response: AxiosResponse<AuthResponse> = await axios.post(
         `${api}/session`,
         { email, password },
-        { timeout: 10000 } 
+        { timeout: 10000 }
       );
-      console.log("Login response:", response.data);
-      const userData = response.data;
-      const accessToken = userData.token.token;
-      console.log("Access token:", accessToken);
+      const { user: userData, token: { token: accessToken } } = response.data;
 
       if (accessToken) {
-         setUser(userData);
-         setToken(accessToken);
-         axios.defaults.headers.common[
-           "Authorization"
-         ] = `Bearer ${accessToken}`;
-       } else {
-         throw new Error("No access token received");
-       }
-    } catch (error) {
-      let errorMessage = "Ocorreu um erro durante o login";
-
-      if (axios.isAxiosError(error)) {
-        console.error("Axios error:", error.response?.data);
-        errorMessage = error.response?.data?.message || error.message;
-
-        if (error.code === 'ECONNABORTED') {
-          setError('Tempo de resposta excedido. Tente novamente mais tarde.');
-          Alert.alert('Erro', 'Tempo de resposta excedido. Tente novamente mais tarde.');
-        }
-      } else if (error instanceof Error) {
-        console.error("Login error:", error);
-        errorMessage = error.message;
+        setUser(userData);
+        setToken(accessToken);
+      } else {
+        throw new Error("Token de acesso não recebido");
       }
-
+    } catch (err) {
+      let errorMessage = "Ocorreu um erro durante o login";
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || err.message;
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Tempo de resposta excedido. Tente novamente mais tarde.';
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       setError(errorMessage);
-      throw error;
+      Alert.alert('Erro de Login', errorMessage);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -84,11 +111,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setToken(null);
-    delete axios.defaults.headers.common["Authorization"];
+    axiosInstance.defaults.headers.common["Authorization"] = undefined;
   };
-  
 
-
+  const authenticatedRequest = async <T = any>(
+    method: AxiosRequestConfig["method"],
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
+    try {
+      const fullUrl = `${api}${url}`;
+      return await axiosInstance.request<T>({
+        method,
+        url: fullUrl,
+        data,
+        ...config,
+      });
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 401 && url !== '/session') {
+          // This specific 401 case is handled by the response interceptor for non-login calls.
+          // Re-throwing the error ensures the caller knows there was an issue.
+      }
+      throw err;
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -99,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isLoading,
         error,
+        authenticatedRequest,
       }}
     >
       {children}

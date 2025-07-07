@@ -69,13 +69,13 @@ export default function Index() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push("/login/page")}
+        onPress={() => router.push("/Login/page")}
       >
         <Text style={styles.buttonText}>Entrar</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.buttonSecondary}
-        onPress={() => router.push("/register/page")}
+        onPress={() => router.push("/Register/page")}
       >
         <Text style={styles.buttonText}>Cadastrar</Text>
       </TouchableOpacity>

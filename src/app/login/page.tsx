@@ -37,7 +37,7 @@ export default function LoginPage() {
     try {
       await login(email, password)
       setLoading(false)
-      router.replace('/(protected)/home/page')
+      router.replace('/(protected)/Home/page')
     } catch (error) {
       setLoading(false)
       Alert.alert('Erro', 'Email ou senha inválidos.')
