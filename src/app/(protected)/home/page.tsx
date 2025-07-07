@@ -71,6 +71,7 @@ const HomePage = () => {
   const router = useRouter()
   const segments = useSegments()
   const { user, logout, isLoading, error } = useContext(AuthContext) // Usar o AuthContext
+//console.log(user.user.name)
 
   // Estados locais
   const [search, setSearch] = useState('')            // texto de busca
@@ -112,7 +113,7 @@ const HomePage = () => {
 
       {/* Exemplo de uso do nome do usuário logado (opcional) */}
       {user && (
-        <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
+        <Text style={styles.welcomeText}>Bem-vindo, {user.user.name}!</Text>
       )}
 
       {/* SEARCH BAR */}

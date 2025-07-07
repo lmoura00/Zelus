@@ -10,11 +10,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
-
+import {AuthProvider} from "@/context/user-context"
 const { width } = Dimensions.get("window");
 const TAB_WIDTH = width / 3;
 
 const ContaPage = () => {
+
   return (
     <SafeAreaView style={styles.ContaPageiner}>
       {/* Header */}
@@ -61,6 +62,7 @@ const ContaPage = () => {
         <MenuItem
           icon={<Ionicons name="log-out-outline" size={20} color="#291f75" />}
           label="Sair da ContaPage"
+      
         />
       </View>
     </SafeAreaView>

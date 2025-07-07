@@ -35,18 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = async (username: string, password: string) => {
-    console.log("Attempting to login with email:", username);
+  const login = async (email: string, password: string) => {
+    console.log("Attempting to login with email:", email);
     console.log(api)
     try {
       const response = await axios.post(
-        `${api}/login`,
-        { username, password },
+        `${api}/session`,
+        { email, password },
         { timeout: 10000 } 
       );
       console.log("Login response:", response.data);
       const userData = response.data;
-      const accessToken = userData.accessToken;
+      const accessToken = userData.token.token;
       console.log("Access token:", accessToken);
 
       if (accessToken) {
@@ -65,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Axios error:", error.response?.data);
         errorMessage = error.response?.data?.message || error.message;
 
-        // No catch do login
         if (error.code === 'ECONNABORTED') {
           setError('Tempo de resposta excedido. Tente novamente mais tarde.');
           Alert.alert('Erro', 'Tempo de resposta excedido. Tente novamente mais tarde.');
