@@ -213,7 +213,7 @@ export default function RegisterPage() {
             style={styles.inputWithIcon}
             placeholder="Digite sua Senha..."
             placeholderTextColor="#918CBC"
-            secureTextEntry={!showPassword}
+            //secureTextEntry={!showPassword}
             value={password}
             onChangeText={(value) => {
               setPassword(value);
@@ -240,7 +240,7 @@ export default function RegisterPage() {
             style={styles.inputWithIcon}
             placeholder="Digite sua Senha Novamente..."
             placeholderTextColor="#918CBC"
-            secureTextEntry={!showConfirm}
+            //secureTextEntry={!showConfirm}
             value={confirm}
             onChangeText={(value) => {
               setConfirm(value);
