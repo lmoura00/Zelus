@@ -18,7 +18,7 @@ import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ico
 import { AuthContext } from '@/context/user-context';
 import { useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-
+import Constants from 'expo-constants';
 interface UserData {
   id: number;
   name: string;
@@ -55,6 +55,7 @@ interface PostData {
   dateInit: string | null;
   dateEnd: string | null;
   comment: string | null;
+  number?: number;
   categoryId: number;
   userId: number;
   departmentId: number;
@@ -173,7 +174,7 @@ const HomePage = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity onPress={() => { }}>
+        <TouchableOpacity style={styles.headerIcon}>
           <Feather name="bell" size={24} color="#291F75" />
         </TouchableOpacity>
       </View>
@@ -190,8 +191,8 @@ const HomePage = () => {
           placeholderTextColor="#918CBC"
           style={styles.searchInput}
         />
-        <TouchableOpacity style={styles.searchBtn} onPress={() => { }}>
-          <Feather name="search" size={20} color="#fff" />
+        <TouchableOpacity style={styles.searchBtn}>
+          <Feather name="search" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -213,7 +214,7 @@ const HomePage = () => {
           <View key={i} style={styles.bannerCard}>
             <View style={styles.bannerContent}>
               <Text style={styles.bannerTitle}>
-                Ajude a prefeitura{`\n`}a te Ajudar!
+                Ajude a prefeitura{"\n"}a te Ajudar!
               </Text>
               <View style={styles.bannerSubtitleBox}>
                 <Text style={styles.bannerSubtitle}>Exemplo de texto</Text>
@@ -237,9 +238,9 @@ const HomePage = () => {
 
       <View style={styles.sectionRow}>
         <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
-        <TouchableOpacity style={styles.filterButton} onPress={() => { }}>
-          <MaterialIcons name="filter-list" size={18} color="#FFF" />
-          <Text style={styles.filterButtonText}>Filtrar</Text>
+        <TouchableOpacity style={styles.filterButton}>
+          <MaterialIcons name="filter-list" size={18} color="#FFFFFF" />
+          <Text style={styles.filterText}>Filtrar</Text>
         </TouchableOpacity>
       </View>
 
@@ -248,7 +249,7 @@ const HomePage = () => {
           <Text style={styles.loadingText}>Carregando solicitações...</Text>
         </View>
       ) : hasPostsError ? (
-        <View style={styles.errorContainer}>
+        <View style={styles.errorFullContainer}>
           <Text style={styles.errorText}>{postsError?.message || 'Erro desconhecido'}</Text>
           <TouchableOpacity onPress={() => refetch()}>
             <Text style={styles.retryButton}>Tentar Novamente</Text>
@@ -323,8 +324,8 @@ const HomePage = () => {
               </TouchableOpacity>
             </View>
             <Text style={styles.modalText}>
-              Você deseja denunciar o Usuário{' '}
-              <Text style={styles.modalBold}>{selectedPost?.user.name}</Text> pelo post{' '}
+              Você deseja denunciar o Usuário{" "}
+              <Text style={styles.modalBold}>{selectedPost?.user.name}</Text> pelo post{" "}
               <Text style={styles.modalBold}>"{selectedPost?.title}"</Text>?
             </Text>
             <View style={styles.modalActions}>
@@ -345,13 +346,14 @@ const HomePage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF'
+    backgroundColor: '#F7F8F9',
+    paddingTop: Constants.statusBarHeight,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF'
+    backgroundColor: '#F7F8F9'
   },
   loadingRequestsContainer: {
     flex: 1,
@@ -364,68 +366,87 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#291F75'
   },
-  errorContainer: {
+  errorFullContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
+    backgroundColor: '#F7F8F9',
   },
   errorText: {
     fontFamily: 'Nunito-SemiBold',
     fontSize: 16,
     color: '#D25A5A',
     textAlign: 'center',
-    marginBottom: 10
+    marginBottom: 10,
   },
   retryButton: {
     fontFamily: 'Nunito-Bold',
     fontSize: 14,
     color: '#291F75',
-    textDecorationLine: 'underline'
+    textDecorationLine: 'underline',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 16,
+    backgroundColor: '#F7F8F9',
   },
   headerTitle: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 28,
-    color: '#291F75'
+    fontSize: 24,
+    color: '#291F75',
+  },
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8E1FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   welcomeText: {
     fontFamily: 'Nunito-SemiBold',
     fontSize: 16,
     color: '#291F75',
-    paddingHorizontal: 16,
-    marginBottom: 16
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   searchRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 20
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#291F75',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 48,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: '#E8E1FA',
+    paddingHorizontal: 16,
     fontSize: 16,
     color: '#291F75',
-    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#D8D0ED',
+    marginRight: 10,
   },
   searchBtn: {
     backgroundColor: '#291F75',
-    paddingHorizontal: 16,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   bannerScrollViewContent: {
     paddingHorizontal: CARD_MARGIN,
@@ -442,76 +463,81 @@ const styles = StyleSheet.create({
   },
   bannerContent: {
     flex: 1,
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   bannerTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 22,
     color: '#291F75',
-    lineHeight: 28
+    lineHeight: 28,
   },
   bannerSubtitleBox: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    marginTop: 12
+    marginTop: 12,
   },
   bannerSubtitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 16,
-    color: '#291F75'
+    color: '#291F75',
   },
   bannerDotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -100,
-    marginBottom: 20
+    marginTop: -40, // Ajuste para trazer mais para perto do banner
+    marginBottom: 20,
   },
   bannerDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: '#AD8B00',
-    marginHorizontal: 5
+    marginHorizontal: 5,
   },
   bannerDotActive: {
-    backgroundColor: '#291F75'
+    backgroundColor: '#291F75',
   },
   sectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 16
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 18,
-    color: '#291F75'
+    color: '#291F75',
   },
   filterButton: {
     flexDirection: 'row',
     backgroundColor: '#291F75',
-    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center'
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  filterButtonText: {
-    fontFamily: 'Nunito-Bold',
-    fontSize: 13,
-    color: '#FFF',
-    marginLeft: 6
+  filterText: {
+    color: '#FFFFFF',
+    marginLeft: 8,
+    fontSize: 15,
+    fontFamily: 'Nunito-SemiBold',
   },
   flatListContent: {
     paddingBottom: height * 0.15,
     paddingTop: 8,
   },
   card: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20, // Consistência
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -530,28 +556,28 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#918CBC'
+    borderColor: '#918CBC',
   },
   tagText: {
     fontFamily: 'Nunito-Bold',
     fontSize: 11,
-    color: '#291F75'
+    color: '#291F75',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10
+    marginBottom: 10,
   },
   cardUser: {
     fontFamily: 'Nunito-Bold',
     fontSize: 13,
     color: '#291F75',
-    marginLeft: 8
+    marginLeft: 8,
   },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12
+    marginBottom: 12,
   },
   cardImage: {
     width: 60,
@@ -567,34 +593,34 @@ const styles = StyleSheet.create({
     marginRight: 16,
     backgroundColor: '#E0E0E0',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   cardTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 16,
     color: '#291F75',
-    marginBottom: 4
+    marginBottom: 4,
   },
   cardDesc: {
     fontSize: 13,
     color: '#584CAF',
-    marginBottom: 8
+    marginBottom: 8,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8
+    marginTop: 8,
   },
   addressRow: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   cardAddress: {
     fontFamily: 'Nunito-SemiBold',
     fontSize: 13,
     color: '#291F75',
-    marginLeft: 6
+    marginLeft: 6,
   },
   reportButton: {
     flexDirection: 'row',
@@ -608,39 +634,39 @@ const styles = StyleSheet.create({
   reportText: {
     fontFamily: 'Nunito-Bold',
     fontSize: 13,
-    color: '#D25A5A'
+    color: '#D25A5A',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   modalContent: {
     width: width * 0.9,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
     borderRadius: 15,
-    padding: 20
+    padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 16,
   },
   modalTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 18,
-    color: '#291F75'
+    color: '#291F75',
   },
   modalText: {
     fontFamily: 'Nunito-SemiBold',
     fontSize: 15,
     color: '#291F75',
-    marginBottom: 20
+    marginBottom: 20,
   },
   modalBold: {
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   modalActions: {
     flexDirection: 'row',
@@ -657,7 +683,7 @@ const styles = StyleSheet.create({
   modalCancelText: {
     textAlign: 'center',
     fontFamily: 'Nunito-Bold',
-    color: '#584CAF'
+    color: '#584CAF',
   },
   modalConfirm: {
     flex: 1,
@@ -665,14 +691,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#D25A5A',
     padding: 12,
     borderRadius: 10,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   modalConfirmText: {
     fontFamily: 'Nunito-Bold',
     fontSize: 15,
-    color: '#FFF'
+    color: '#FFF',
   },
   emptyListContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
@@ -680,7 +707,7 @@ const styles = StyleSheet.create({
   emptyListText: {
     fontFamily: 'Nunito-SemiBold',
     fontSize: 16,
-    color: '#918CBC'
+    color: '#918CBC',
   },
 });
 export default HomePage;

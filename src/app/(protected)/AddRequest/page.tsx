@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useContext, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,16 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import DropDownPicker from 'react-native-dropdown-picker';
-import MapView, { Marker } from 'react-native-maps';
-import * as ImagePicker from 'expo-image-picker';
-import { useMutation } from '@tanstack/react-query';
-import { AuthContext } from '@/context/user-context';
-import { AxiosError } from 'axios';
+} from "react-native";
+import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import DropDownPicker from "react-native-dropdown-picker";
+import MapView, { Marker } from "react-native-maps";
+import * as ImagePicker from "expo-image-picker";
+import { useMutation } from "@tanstack/react-query";
+import { AuthContext } from "@/context/user-context";
+import { AxiosError } from "axios";
+import Constants from "expo-constants";
 
 interface CategoryItem {
   label: string;
@@ -38,15 +39,15 @@ interface CreatePostPayload {
   file: File | null;
 }
 
-const CreateRequestScreen = ()=> {
+const CreateRequestScreen = () => {
   const router = useRouter();
   const { authenticatedRequest, token } = useContext(AuthContext);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [cep, setCep] = useState('');
-  const [neighborhood, setNeighborhood] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [cep, setCep] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -55,18 +56,20 @@ const CreateRequestScreen = ()=> {
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [items, setItems] = useState<CategoryItem[]>([
-    { label: 'Iluminação', value: '1' },
-    { label: 'Pavimentação', value: '2' },
-    { label: 'Árvores', value: '3' },
-    { label: 'Sinalização', value: '4' },
+    { label: "Iluminação", value: "1" },
+    { label: "Pavimentação", value: "2" },
+    { label: "Árvores", value: "3" },
+    { label: "Sinalização", value: "4" },
     // Adapte estes valores com os IDs reais das suas categorias da API
   ]);
 
   const [openDepartment, setOpenDepartment] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(
+    null
+  );
   const [departmentItems, setDepartmentItems] = useState([
-    { label: 'Ouvidoria', value: '1' },
-    { label: 'Manutenção', value: '2' },
+    { label: "Ouvidoria", value: "1" },
+    { label: "Manutenção", value: "2" },
     // Adapte estes valores com os IDs reais dos seus departamentos da API
   ]);
 
@@ -75,21 +78,26 @@ const CreateRequestScreen = ()=> {
       if (!token) {
         throw new Error("Token de autenticação não disponível.");
       }
-      const response = await authenticatedRequest('POST', '/post', formData, {
+      const response = await authenticatedRequest("POST", "/post", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data', // Importante para envio de arquivos
+          "Content-Type": "multipart/form-data", // Importante para envio de arquivos
         },
       });
       return response.data;
     },
     onSuccess: () => {
-      Alert.alert('Sucesso', 'Solicitação criada com sucesso!');
+      Alert.alert("Sucesso", "Solicitação criada com sucesso!");
       router.back();
       // Opcional: Invalide queries para atualizar a lista na HomePage
       // queryClient.invalidateQueries(['posts', 'userPosts']);
     },
     onError: (error) => {
-      Alert.alert('Erro', `Falha ao criar solicitação: ${error.response?.data?.message || error.message}`);
+      Alert.alert(
+        "Erro",
+        `Falha ao criar solicitação: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     },
   });
 
@@ -104,7 +112,7 @@ const CreateRequestScreen = ()=> {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       setImageUri(uri);
-      const fileExtension = uri.split('.').pop();
+      const fileExtension = uri.split(".").pop();
       const fileName = `photo.${fileExtension}`;
       const type = `image/${fileExtension}`;
 
@@ -120,28 +128,51 @@ const CreateRequestScreen = ()=> {
   };
 
   const handleSubmit = useCallback(() => {
-    if (!title || !description || !address || !cep || !neighborhood || !selectedType || !selectedDepartment || !imageFile) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos e adicione uma imagem.');
+    if (
+      !title ||
+      !description ||
+      !address ||
+      !cep ||
+      !neighborhood ||
+      !selectedType ||
+      !selectedDepartment ||
+      !imageFile
+    ) {
+      Alert.alert(
+        "Erro",
+        "Por favor, preencha todos os campos e adicione uma imagem."
+      );
       return;
     }
 
     const formData = new FormData();
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('address', address);
-    formData.append('cep', cep);
-    formData.append('neighborhood', neighborhood);
-    formData.append('categoryId', selectedType);
-    formData.append('departmentId', selectedDepartment);
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("address", address);
+    formData.append("cep", cep);
+    formData.append("neighborhood", neighborhood);
+    formData.append("categoryId", selectedType);
+    formData.append("departmentId", selectedDepartment);
     if (latitude !== null && longitude !== null) {
-      formData.append('latitude', latitude.toString());
-      formData.append('longitude', longitude.toString());
+      formData.append("latitude", latitude.toString());
+      formData.append("longitude", longitude.toString());
     }
-    formData.append('file', imageFile);
+    formData.append("file", imageFile);
 
     createPostMutation.mutate(formData);
-  }, [title, description, address, cep, neighborhood, selectedType, selectedDepartment, latitude, longitude, imageFile, createPostMutation]);
-
+  }, [
+    title,
+    description,
+    address,
+    cep,
+    neighborhood,
+    selectedType,
+    selectedDepartment,
+    latitude,
+    longitude,
+    imageFile,
+    createPostMutation,
+  ]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -180,7 +211,12 @@ const CreateRequestScreen = ()=> {
       />
 
       <Text style={styles.label}>Tipo de Solicitação:</Text>
-      <View style={[styles.dropdownWrapper, Platform.OS !== 'android' && { zIndex: 3000 }]}>
+      <View
+        style={[
+          styles.dropdownWrapper,
+          Platform.OS !== "android" && { zIndex: 3000 },
+        ]}
+      >
         <DropDownPicker
           listMode="SCROLLVIEW"
           open={open}
@@ -198,7 +234,12 @@ const CreateRequestScreen = ()=> {
       </View>
 
       <Text style={styles.label}>Departamento Responsável:</Text>
-      <View style={[styles.dropdownWrapper, Platform.OS !== 'android' && { zIndex: 2000 }]}>
+      <View
+        style={[
+          styles.dropdownWrapper,
+          Platform.OS !== "android" && { zIndex: 2000 },
+        ]}
+      >
         <DropDownPicker
           listMode="SCROLLVIEW"
           open={openDepartment}
@@ -274,103 +315,116 @@ const CreateRequestScreen = ()=> {
       </TouchableOpacity>
     </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#FFF', flexGrow: 1 },
+  container: {
+    padding: 20,
+    backgroundColor: "#FFF",
+    flexGrow: 1,
+    paddingTop: Constants.statusBarHeight,
+  },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F7FF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F7FF",
     borderRadius: 18,
     marginVertical: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   backButtonText: {
-    color: '#291F75',
+    color: "#291F75",
     fontSize: 16,
     marginLeft: 8,
-    fontFamily: 'Nunito-SemiBold',
+    fontFamily: "Nunito-SemiBold",
   },
   header: {
     fontSize: 26,
-    fontFamily: 'Nunito-Bold',
-    color: '#291F75',
-    textAlign: 'center',
+    fontFamily: "Nunito-Bold",
+    color: "#291F75",
+    textAlign: "center",
     marginBottom: 30,
   },
   imagePicker: {
-    width: '100%',
+    width: "100%",
     height: 180, // Aumenta a área do seletor de imagem
     borderRadius: 12, // Mais arredondado
     borderWidth: 2,
-    borderColor: '#5D559C',
-    borderStyle: 'dashed', // Borda tracejada
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
+    borderColor: "#5D559C",
+    borderStyle: "dashed", // Borda tracejada
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
     marginBottom: 30,
-    overflow: 'hidden', // Para que a imagem preencha corretamente
-    backgroundColor: '#E8E1FA', // Cor de fundo suave
+    overflow: "hidden", // Para que a imagem preencha corretamente
+    backgroundColor: "#E8E1FA", // Cor de fundo suave
   },
   pickedImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   label: {
     fontSize: 16,
-    color: '#291F75',
-    fontFamily: 'Nunito-SemiBold',
+    color: "#291F75",
+    fontFamily: "Nunito-SemiBold",
     marginBottom: 8,
     marginTop: 10, // Espaçamento entre campos
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D8D0ED', // Borda mais clara
+    borderColor: "#D8D0ED", // Borda mais clara
     borderRadius: 10, // Mais arredondado
     paddingHorizontal: 16, // Mais padding
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: 'Nunito-Regular',
-    color: '#291F75',
+    fontFamily: "Nunito-Regular",
+    color: "#291F75",
     marginBottom: 20, // Mais espaçamento
-    backgroundColor: '#F8F7FF', // Fundo leve
+    backgroundColor: "#F8F7FF", // Fundo leve
   },
-  textarea: { height: 120, textAlignVertical: 'top' },
+  textarea: { height: 120, textAlignVertical: "top" },
   dropdownWrapper: { marginBottom: 20 },
-  dropdown: { borderColor: '#D8D0ED', borderRadius: 10, backgroundColor: '#F8F7FF' },
-  dropdownContainer: { borderColor: '#D8D0ED', borderRadius: 10, backgroundColor: '#F8F7FF' },
+  dropdown: {
+    borderColor: "#D8D0ED",
+    borderRadius: 10,
+    backgroundColor: "#F8F7FF",
+  },
+  dropdownContainer: {
+    borderColor: "#D8D0ED",
+    borderRadius: 10,
+    backgroundColor: "#F8F7FF",
+  },
   mapContainer: {
     height: 200, // Altura do mapa
     borderRadius: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#D8D0ED',
+    borderColor: "#D8D0ED",
   },
   map: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   submitButton: {
-    backgroundColor: '#291F75',
+    backgroundColor: "#291F75",
     paddingVertical: 16,
     borderRadius: 10,
     marginBottom: 40,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 8,
   },
   submitButtonText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 18,
-    fontFamily: 'Nunito-Bold',
-    textAlign: 'center',
+    fontFamily: "Nunito-Bold",
+    textAlign: "center",
   },
 });
 
