@@ -3,15 +3,19 @@ import { View, Text, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, To
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '@/context/user-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import MapView, { Marker } from 'react-native-maps'; // Importar MapView e Marker
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import Constants from 'expo-constants';
 
 interface UserData {
   id: number;
   name: string;
   email: string;
   cpf: string;
+  createdAt?: string;
+  updatedAt?: string;
+  restores?: any[];
 }
 
 interface CategoryData {
@@ -26,6 +30,7 @@ interface DepartmentData {
   name: string;
   createdAt: string;
   updatedAt: string;
+  admins?: any[];
 }
 
 interface PostData {
@@ -38,8 +43,8 @@ interface PostData {
   neighborhood: string;
   publicId?: string;
   publicUrl?: string;
-  latitude: number | null;
-  longitude: number | null;
+  latitude: string | null;
+  longitude: string | null;
   dateInit: string | null;
   dateEnd: string | null;
   comment: string | null;
@@ -58,8 +63,9 @@ const { width } = Dimensions.get('window');
 
 export default function SolicitacaoItemDetails() {
   const { id } = useLocalSearchParams();
-  const { token, authenticatedRequest } = useContext(AuthContext);
+  const { user, token, authenticatedRequest } = useContext(AuthContext);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const postId = typeof id === 'string' ? parseInt(id, 10) : undefined;
@@ -93,6 +99,52 @@ export default function SolicitacaoItemDetails() {
     },
   });
 
+  const deletePostMutation = useMutation<any, AxiosError, number>({
+    mutationFn: async (postIdToDelete: number) => {
+      if (!token) {
+        throw new Error("Token de autenticação não disponível.");
+      }
+      const response = await authenticatedRequest('DELETE', `/post/${postIdToDelete}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      Alert.alert("Sucesso", "Solicitação excluída com sucesso!");
+      queryClient.invalidateQueries(['posts']);
+      queryClient.invalidateQueries(['userPosts']);
+      router.back();
+    },
+    onError: (error) => {
+      Alert.alert("Erro", `Falha ao excluir solicitação: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
+  const handleEditPost = useCallback(() => {
+    if (postDetails) {
+      router.push(`/EditRequest/${postDetails.id}`);
+    }
+  }, [postDetails, router]);
+
+  const handleDeletePost = useCallback(() => {
+    if (!postDetails) return;
+
+    Alert.alert(
+      "Confirmar Exclusão",
+      `Tem certeza que deseja excluir a solicitação "${postDetails.title}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          onPress: () => {
+            if (postDetails.id) {
+              deletePostMutation.mutate(postDetails.id);
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  }, [postDetails, deletePostMutation]);
+
   const images = postDetails?.publicUrl ? [postDetails.publicUrl] : [];
 
   const goToPreviousImage = () => {
@@ -103,7 +155,7 @@ export default function SolicitacaoItemDetails() {
     setCurrentImageIndex((prevIndex) => Math.min(images.length - 1, prevIndex + 1));
   };
 
-  const getStatusDisplay = (status: string | undefined) => {
+  const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'PENDENTE': return { text: 'Pendente', icon: 'clock-time-four-outline', color: '#FFB800' };
       case 'EM_ANDAMENTO': return { text: 'Em Andamento', icon: 'refresh', color: '#3B73C4' };
@@ -113,7 +165,7 @@ export default function SolicitacaoItemDetails() {
     }
   };
 
-  if (isPostDetailsLoading || isPostDetailsFetching) {
+  if (isPostDetailsLoading || isPostDetailsFetching || deletePostMutation.isPending) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
@@ -136,6 +188,11 @@ export default function SolicitacaoItemDetails() {
   }
 
   const statusInfo = getStatusDisplay(postDetails.status);
+
+  const mapLatitude = postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null;
+  const mapLongitude = postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null;
+
+  const isOwner = user && postDetails.user && user.id === postDetails.user.id;
 
   return (
     <View style={styles.container}>
@@ -169,6 +226,19 @@ export default function SolicitacaoItemDetails() {
 
         <Text style={styles.title}>{postDetails.title}</Text>
 
+        {isOwner && (
+            <View style={styles.ownerActions}>
+                <TouchableOpacity style={styles.editButton} onPress={handleEditPost}>
+                    <Feather name="edit" size={16} color="#291F75" />
+                    <Text style={styles.editButtonText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
+                    <Feather name="trash-2" size={16} color="#D25A5A" />
+                    <Text style={styles.deleteButtonText}>Excluir</Text>
+                </TouchableOpacity>
+            </View>
+        )}
+
         <View style={styles.infoCard}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="text-box-outline" size={20} color="#291F75" style={styles.cardIcon} />
@@ -192,23 +262,24 @@ export default function SolicitacaoItemDetails() {
           </View>
           <Text style={styles.cardText}>{postDetails.address}, {postDetails.neighborhood}</Text>
           
-          {(postDetails.latitude !== null && postDetails.longitude !== null) ? (
+          {(mapLatitude !== null && mapLongitude !== null) ? (
             <View style={styles.mapContainer}>
               <MapView
                 style={styles.map}
                 initialRegion={{
-                  latitude: postDetails.latitude,
-                  longitude: postDetails.longitude,
+                  latitude: mapLatitude,
+                  longitude: mapLongitude,
                   latitudeDelta: 0.005,
                   longitudeDelta: 0.005,
                 }}
+                provider={PROVIDER_GOOGLE}
                 scrollEnabled={false}
                 zoomEnabled={false}
                 pitchEnabled={false}
                 rotateEnabled={false}
               >
                 <Marker
-                  coordinate={{ latitude: postDetails.latitude, longitude: postDetails.longitude }}
+                  coordinate={{ latitude: mapLatitude, longitude: mapLongitude }}
                   title={postDetails.title}
                   description={postDetails.address}
                 />
@@ -271,13 +342,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F7F8F9',
+    paddingBottom:120, // Ajustado para evitar corte
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     position: 'absolute',
-    top: 40,
+    top: Constants.statusBarHeight + 10,
     left: 0,
     zIndex: 10,
     backgroundColor: 'rgba(255,255,255,0.7)',
@@ -298,13 +370,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 280,
     overflow: 'hidden',
-    marginBottom: 0, // Ajuste para o título vir logo depois
+    marginBottom: 0,
     position: 'relative',
   },
   mainImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   noImagePlaceholder: {
     flex: 1,
@@ -338,25 +410,70 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 28, // Aumentado para destaque
+    fontSize: 28,
     color: '#291F75',
     marginBottom: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
-    marginTop: -40, // Sobrepõe a imagem para o efeito visual da imagem
-    backgroundColor: 'transparent', // Garante que o texto não tenha fundo sólido aqui
-    textShadowColor: 'rgba(0,0,0,0.2)', // Sombra para o texto
+    marginTop: -40,
+    backgroundColor: 'transparent',
+    textShadowColor: 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  ownerActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 10,
+    width: '90%',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8E1FA',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  editButtonText: {
+    marginLeft: 8,
+    fontFamily: 'Nunito-SemiBold',
+    color: '#291F75',
+    fontSize: 15,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FBE6E6',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  deleteButtonText: {
+    marginLeft: 8,
+    fontFamily: 'Nunito-SemiBold',
+    color: '#D25A5A',
+    fontSize: 15,
+  },
   infoCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12, // Mais arredondado
-    padding: 20, // Aumentado
-    marginBottom: 15, // Mais espaçamento entre os cards
-    width: width * 0.9, // Largura mais responsiva e consistente
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 15,
+    width: width * 0.9,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 }, // Sombra mais proeminente
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 5,
@@ -364,8 +481,8 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12, // Mais espaçamento
-    borderBottomWidth: 1, // Linha divisória
+    marginBottom: 12,
+    borderBottomWidth: 1,
     borderBottomColor: '#EEE',
     paddingBottom: 10,
   },
@@ -374,12 +491,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 18, // Aumentado
+    fontSize: 18,
     color: '#291F75',
   },
   cardText: {
     fontFamily: 'Nunito-Regular',
-    fontSize: 16, // Aumentado
+    fontSize: 16,
     color: '#555',
     lineHeight: 24,
     marginBottom: 5,
@@ -389,11 +506,11 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     width: '100%',
-    height: 200, // Aumentar altura do mapa
+    height: 200,
     borderRadius: 8,
     overflow: 'hidden',
     marginTop: 15,
-    borderWidth: 1, // Borda no mapa
+    borderWidth: 1,
     borderColor: '#DDD',
   },
   map: {
@@ -450,7 +567,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 15,
-    marginLeft: 'auto', // Empurra para a direita
+    marginLeft: 'auto',
   },
   currentStatusText: {
     fontFamily: 'Nunito-Bold',
@@ -461,22 +578,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20, // Mais espaçamento
+    marginBottom: 20,
     paddingHorizontal: 5,
   },
   step: {
     alignItems: 'center',
-    flex: 1, // Garante que ocupem espaço igual
+    flex: 1,
   },
   stepCircle: {
-    width: 35, // Um pouco maior
+    width: 35,
     height: 35,
     borderRadius: 17.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepCircleActive: {
-    backgroundColor: '#5cb85c', // Verde
+    backgroundColor: '#5cb85c',
   },
   stepCircleInactive: {
     backgroundColor: '#ddd',
@@ -484,7 +601,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   stepText: {
-    marginTop: 6, // Mais espaçamento
+    marginTop: 6,
     fontSize: 13,
     fontFamily: 'Nunito-Regular',
     textAlign: 'center',
@@ -505,13 +622,13 @@ const styles = StyleSheet.create({
   statusInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F9F1', // Fundo sutil para a info de status
+    backgroundColor: '#F1F9F1',
     borderRadius: 8,
     padding: 10,
     marginTop: 10,
   },
   radioOuter: {
-    width: 18, // Um pouco maior
+    width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 1,
@@ -521,7 +638,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   radioInner: {
-    width: 10, // Um pouco maior
+    width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: '#5cb85c',

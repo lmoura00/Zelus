@@ -15,9 +15,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import SolicitacaoItem from "@/component/SolicitacaoItem";
 import { useRouter } from "expo-router";
-import { AuthContext } from '@/context/user-context';
-import { useQuery } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
+import { AuthContext } from "@/context/user-context";
+import { useQuery } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 
 interface CategoryData {
   id: number;
@@ -31,6 +31,7 @@ interface DepartmentData {
   name: string;
   createdAt: string;
   updatedAt: string;
+  admins?: any[];
 }
 
 interface PostData {
@@ -70,16 +71,22 @@ interface UserDataWithoutPosts {
 }
 
 interface UserDataResponse extends UserDataWithoutPosts {
-  posts: PostData[];
+  posts: Omit<PostData, "category" | "user" | "department">[];
 }
 
 const { width, height } = Dimensions.get("window");
 
 const SolicitacoesPage = () => {
   const router = useRouter();
-  const { user, token, authenticatedRequest, isLoading: isAuthLoading, error: authError } = useContext(AuthContext);
+  const {
+    user,
+    token,
+    authenticatedRequest,
+    isLoading: isAuthLoading,
+    error: authError,
+  } = useContext(AuthContext);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   const formatTimeAgo = useCallback((dateString: string) => {
     const date = new Date(dateString);
@@ -99,31 +106,129 @@ const SolicitacoesPage = () => {
     return `${years} anos atrás`;
   }, []);
 
-  const handleViewPostDetails = useCallback((postId: number) => {
-    router.push(`/SolicitacaoItem/${postId}`);
-  }, [router]);
+  const handleViewPostDetails = useCallback(
+    (postId: number) => {
+      router.push(`/SolicitacaoItem/${postId}`);
+    },
+    [router]
+  );
 
   const handleDenounce = useCallback((item: PostData) => {
     Alert.alert("Denunciar", `Deseja denunciar a solicitação "${item.title}"?`);
   }, []);
 
+  const fetchCategoriesQueryFn = useCallback(async () => {
+    if (!token) throw new Error("Token para categorias não disponível.");
+    const response = await authenticatedRequest<CategoryData[]>(
+      "GET",
+      "/categories"
+    );
+    return response.data;
+  }, [token, authenticatedRequest]);
+
+  const {
+    data: categories,
+    isLoading: isCategoriesLoading,
+    isError: isCategoriesError,
+  } = useQuery<CategoryData[], AxiosError>({
+    queryKey: ["categories", token],
+    queryFn: fetchCategoriesQueryFn,
+    enabled: !!token,
+    staleTime: Infinity,
+    onError: (err) => {
+      Alert.alert(
+        "Erro",
+        `Não foi possível carregar categorias: ${
+          err.message || "Erro desconhecido"
+        }`
+      );
+    },
+  });
+
+  const fetchDepartmentsQueryFn = useCallback(async () => {
+    if (!token) throw new Error("Token para departamentos não disponível.");
+    const response = await authenticatedRequest<DepartmentData[]>(
+      "GET",
+      "/departments"
+    );
+    return response.data;
+  }, [token, authenticatedRequest]);
+
+  const {
+    data: departments,
+    isLoading: isDepartmentsLoading,
+    isError: isDepartmentsError,
+  } = useQuery<DepartmentData[], AxiosError>({
+    queryKey: ["departments", token],
+    queryFn: fetchDepartmentsQueryFn,
+    enabled: !!token,
+    staleTime: Infinity,
+    onError: (err) => {
+      Alert.alert(
+        "Erro",
+        `Não foi possível carregar departamentos: ${
+          err.message || "Erro desconhecido"
+        }`
+      );
+    },
+  });
+
   const fetchUserPostsQueryFn = useCallback(async () => {
-    if (!token) {
-      throw new Error("Token de autenticação não disponível.");
-    }
-    if (!user?.id) {
-      throw new Error("ID do usuário não disponível.");
-    }
-    const response = await authenticatedRequest<UserDataResponse>('GET', `/user/${user.id}`);
-    
-    const postsWithDetails = response.data.posts.map(post => ({
+    if (!token) throw new Error("Token de autenticação não disponível.");
+    if (!user?.id) throw new Error("ID do usuário não disponível.");
+    if (!categories || !departments)
+      throw new Error("Dados de categoria/departamento não carregados.");
+
+    const response = await authenticatedRequest<UserDataResponse>(
+      "GET",
+      `/user/${user.id}`
+    );
+
+    const postsWithDetails: PostData[] = response.data.posts.map((post) => {
+      const fullCategory = categories.find((cat) => cat.id === post.categoryId);
+      const fullDepartment = departments.find(
+        (dep) => dep.id === post.departmentId
+      );
+      const postUser: UserDataWithoutPosts = {
+        // Construindo o objeto user para o post
+        id: response.data.id,
+        name: response.data.name,
+        email: response.data.email,
+        cpf: response.data.cpf,
+        createdAt: response.data.createdAt,
+        updatedAt: response.data.updatedAt,
+        restores: response.data.restores,
+      };
+
+      return {
         ...post,
-        category: post.category || { id: post.categoryId, name: 'Desconhecida', createdAt: '', updatedAt: '' },
-        user: post.user || { id: post.userId, name: response.data.name || 'Desconhecido', email: response.data.email || '', cpf: '', createdAt: '', updatedAt: '', restores: [] },
-    }));
+        category: fullCategory || {
+          id: post.categoryId,
+          name: "Desconhecida",
+          createdAt: "",
+          updatedAt: "",
+        },
+        department: fullDepartment || {
+          id: post.departmentId,
+          name: "Desconhecido",
+          createdAt: "",
+          updatedAt: "",
+          admins: [],
+        },
+        user: postUser, // Reutiliza os dados do usuário principal da resposta /user/:id
+      };
+    });
 
     return postsWithDetails;
-  }, [token, user?.id, user?.name, user?.email, authenticatedRequest]);
+  }, [
+    token,
+    user?.id,
+    user?.name,
+    user?.email,
+    authenticatedRequest,
+    categories,
+    departments,
+  ]);
 
   const {
     data: userPosts,
@@ -133,23 +238,26 @@ const SolicitacoesPage = () => {
     refetch: refetchUserPosts,
     isError: hasUserPostsError,
   } = useQuery<PostData[], AxiosError>({
-    queryKey: ['userPosts', user?.id, token],
+    queryKey: ["userPosts", user?.id, token, categories, departments], // Adicionado categories/departments como dependência
     queryFn: fetchUserPostsQueryFn,
-    enabled: !!token && !!user?.id,
+    enabled: !!token && !!user?.id && !!categories && !!departments, // Só executa se categories e departments estiverem carregados
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
     onError: (err) => {
-        Alert.alert('Erro ao carregar minhas solicitações', err.message || 'Erro desconhecido ao carregar.');
-    }
+      Alert.alert(
+        "Erro ao carregar minhas solicitações",
+        err.message || "Erro desconhecido ao carregar."
+      );
+    },
   });
 
   useEffect(() => {
     if (!user && !isAuthLoading && !token) {
-      router.replace('/Login/page');
+      router.replace("/Login/page");
     }
     if (authError) {
-      Alert.alert('Erro de Autenticação', authError);
+      Alert.alert("Erro de Autenticação", authError);
     }
   }, [user, isAuthLoading, authError, router, token]);
 
@@ -158,25 +266,43 @@ const SolicitacoesPage = () => {
     return (
       item.title.toLowerCase().includes(lowerCaseSearch) ||
       item.description.toLowerCase().includes(lowerCaseSearch) ||
-      item.category?.name.toLowerCase().includes(lowerCaseSearch) ||
-      item.user?.name.toLowerCase().includes(lowerCaseSearch)
+      item.category?.name?.toLowerCase().includes(lowerCaseSearch) ||
+      item.user?.name?.toLowerCase().includes(lowerCaseSearch)
     );
   });
 
   const handleCreateNewRequest = useCallback(() => {
-    router.push('/AddRequest/page');
+    router.push("/AddRequest/page");
   }, [router]);
 
-  if (isAuthLoading) {
+  if (isAuthLoading || isCategoriesLoading || isDepartmentsLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Autenticando...</Text>
+        <ActivityIndicator size="large" color="#291F75" />
+        <Text style={styles.loadingText}>Carregando dados iniciais...</Text>
       </View>
     );
   }
 
   if (!user && !isAuthLoading) {
     return null;
+  }
+
+  if (isCategoriesError || isDepartmentsError) {
+    return (
+      <View style={styles.errorListContainer}>
+        <Text style={styles.errorText}>
+          Erro ao carregar dados essenciais (categorias/departamentos).
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            /* Poderia refetchCategories e refetchDepartments aqui */
+          }}
+        >
+          <Text style={styles.retryButton}>Tentar Novamente</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -204,7 +330,11 @@ const SolicitacoesPage = () => {
       <View style={styles.filterContainer}>
         <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
         <TouchableOpacity style={styles.filterButton}>
-          <MaterialCommunityIcons name="filter-outline" size={20} color="#FFFFFF" />
+          <MaterialCommunityIcons
+            name="filter-outline"
+            size={20}
+            color="#FFFFFF"
+          />
           <Text style={styles.filterText}>Filtrar</Text>
         </TouchableOpacity>
       </View>
@@ -212,11 +342,16 @@ const SolicitacoesPage = () => {
       {isUserPostsLoading && !isUserPostsFetching ? (
         <View style={styles.loadingListContainer}>
           <ActivityIndicator size="large" color="#291F75" />
-          <Text style={styles.loadingText}>Carregando minhas solicitações...</Text>
+          <Text style={styles.loadingText}>
+            Carregando minhas solicitações...
+          </Text>
         </View>
       ) : hasUserPostsError ? (
         <View style={styles.errorListContainer}>
-          <Text style={styles.errorText}>{userPostsError?.message || 'Erro desconhecido ao carregar minhas solicitações.'}</Text>
+          <Text style={styles.errorText}>
+            {userPostsError?.message ||
+              "Erro desconhecido ao carregar minhas solicitações."}
+          </Text>
           <TouchableOpacity onPress={() => refetchUserPosts()}>
             <Text style={styles.retryButton}>Tentar Novamente</Text>
           </TouchableOpacity>
@@ -224,8 +359,13 @@ const SolicitacoesPage = () => {
       ) : filteredUserPosts.length === 0 ? (
         <View style={styles.emptyListContainer}>
           <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
-          <TouchableOpacity onPress={handleCreateNewRequest} style={styles.addFirstButton}>
-            <Text style={styles.addFirstButtonText}>Adicionar primeira solicitação</Text>
+          <TouchableOpacity
+            onPress={handleCreateNewRequest}
+            style={styles.addFirstButton}
+          >
+            <Text style={styles.addFirstButtonText}>
+              Adicionar primeira solicitação
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -247,14 +387,17 @@ const SolicitacoesPage = () => {
               onRefresh={() => {
                 refetchUserPosts();
               }}
-              colors={['#291F75']}
-              tintColor={'#291F75'}
+              colors={["#291F75"]}
+              tintColor={"#291F75"}
             />
           }
         />
       )}
 
-      <TouchableOpacity style={styles.addButton} onPress={handleCreateNewRequest}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={handleCreateNewRequest}
+      >
         <Ionicons name="add" size={32} color="#291f75" />
       </TouchableOpacity>
     </SafeAreaView>
@@ -262,13 +405,50 @@ const SolicitacoesPage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F8F9" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F7F8F9" },
-  loadingText: { marginTop: 10, fontFamily: "Nunito-SemiBold", fontSize: 16, color: "#291f75" },
-  loadingListContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 },
-  errorListContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 30, paddingVertical: 40 },
-  errorText: { fontFamily: "Nunito-SemiBold", fontSize: 16, color: "#D25A5A", textAlign: "center", marginBottom: 10 },
-  retryButton: { fontFamily: "Nunito-Bold", fontSize: 14, color: "#291f75", textDecorationLine: "underline" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F7F8F9",
+    paddingBottom: 120,
+    marginBottom: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F7F8F9",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontFamily: "Nunito-SemiBold",
+    fontSize: 16,
+    color: "#291f75",
+  },
+  loadingListContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  errorListContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+    paddingVertical: 40,
+  },
+  errorText: {
+    fontFamily: "Nunito-SemiBold",
+    fontSize: 16,
+    color: "#D25A5A",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  retryButton: {
+    fontFamily: "Nunito-Bold",
+    fontSize: 14,
+    color: "#291f75",
+    textDecorationLine: "underline",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,14 +1,14 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
+import Constants from "expo-constants";
 export default function TelaSeguranca() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
       {/* Botão Voltar */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(protected)/Conta/page")}>
         <Ionicons name="arrow-back" size={18} color="#291f75" />
         <Text style={styles.backText}>Voltar</Text>
       </TouchableOpacity>
@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
     padding: 20,
+    paddingTop: Constants.statusBarHeight,
   },
   backButton: {
     flexDirection: "row",

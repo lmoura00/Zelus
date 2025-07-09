@@ -1,7 +1,3 @@
-// tive que instalar o npm install react-native-swipe-list-view para da o feito de deslizar 
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import {View,Text,StyleSheet,TouchableOpacity,ActivityIndicator,Animated,} from 'react-native';
 import { useNavigation } from '@react-navigation/native';

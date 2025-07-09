@@ -1,162 +1,219 @@
-import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Reutilize as interfaces de tipagem da PostData
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  cpf: string;
+  createdAt?: string;
+  updatedAt?: string;
+  restores?: any[];
+}
+
+interface CategoryData {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DepartmentData {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PostData {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  address: string;
+  cep: string;
+  neighborhood: string;
+  publicId?: string;
+  publicUrl?: string;
+  latitude: number | null; 
+  longitude: number | null; 
+  dateInit: string | null;
+  dateEnd: string | null;
+  comment: string | null;
+  number?: number;
+  categoryId: number;
+  userId: number;
+  departmentId: number;
+  createdAt: string;
+  updatedAt: string;
+  category?: CategoryData; 
+  user?: UserData; 
+  department?: DepartmentData; 
+}
 
 interface SolicitacaoItemProps {
-  usuario: string;
-  tempo: string;
-  tipo: string;
-  titulo: string;
-  descricao: string;
-  endereco: string;
-  imagem: string;
-  onEditar?: () => void;
-  onDeletar?: () => void;
+  item: PostData; 
+  onPress: (postId: number) => void;
+  onDenounce: (item: PostData) => void;
+  formatTimeAgo: (dateString: string) => string;
 }
 
 export default function SolicitacaoItem({
-  usuario,
-  tempo,
-  tipo,
-  titulo,
-  descricao,
-  endereco,
-  imagem,
-  onEditar,
-  onDeletar,
+  item,
+  onPress,
+  onDenounce,
+  formatTimeAgo,
 }: SolicitacaoItemProps) {
   return (
-    <View style={styles.container}>
-      {/* Cabeçalho */}
+    <TouchableOpacity
+      style={styles.container}
+      onPress={() => onPress(item.id)}
+      activeOpacity={0.8}
+    >
+      <View style={styles.tagBadge}>
+        
+        <Text style={styles.tagText}>{item.category?.name || 'Tipo Desconhecido'}</Text>
+      </View>
       <View style={styles.header}>
-        <Ionicons name="person-circle" size={20} color="#291f75" />
+        <Feather name="user" size={16} color="#291F75" />
+       
         <Text style={styles.userText}>
-          {usuario} • {tempo}
+          {item.user?.name || 'Usuário Desconhecido'} • {formatTimeAgo(item.createdAt)}
         </Text>
-        <View style={styles.tipoTag}>
-          <Text style={styles.tipoText}>{tipo}</Text>
-        </View>
       </View>
 
-      {/* Corpo com imagem e descrição */}
       <View style={styles.body}>
-        <Image source={{ uri: imagem }} style={styles.image} />
+        {item.publicUrl ? (
+          <Image source={{ uri: item.publicUrl }} style={styles.image} />
+        ) : (
+          <MaterialCommunityIcons name="image-off" size={48} color="#CCCCCC" style={styles.imagePlaceholder} />
+        )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.titulo}>{titulo}</Text>
+          <Text style={styles.titulo} numberOfLines={1}>{item.title}</Text>
           <Text style={styles.descricao} numberOfLines={2}>
-            Descrição: {descricao}
+            {item.description}
           </Text>
         </View>
       </View>
 
-      {/* Endereço + botões */}
       <View style={styles.footer}>
         <View style={styles.endereco}>
-          <Ionicons name="location-outline" size={16} color="#291f75" />
-          <Text style={styles.enderecoText}>{endereco}</Text>
+          <Feather name="map-pin" size={14} color="#291F75" />
+          <Text style={styles.enderecoText}>{item.address}</Text>
         </View>
-        <View style={styles.botoes}>
-          <TouchableOpacity style={styles.botaoEditar} onPress={onEditar}>
-            <Text style={styles.botaoEditarText}>Editar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.botaoExcluir} onPress={onDeletar}>
-            <Text style={styles.botaoExcluirText}>Deletar</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.botaoDenunciar} onPress={(e) => { e.stopPropagation(); onDenounce(item); }}>
+          <Feather name="flag" size={14} color="#D25A5A" style={{ marginRight: 4 }} />
+          <Text style={styles.botaoDenunciarText}>Denunciar</Text>
+        </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 16,
-    marginHorizontal: 20,
-    borderColor: "#E0D8F8",
-    borderWidth: 1,
+    marginHorizontal: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
   userText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: "#291f75",
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#291F75',
+    fontFamily: 'Nunito-Bold',
     flex: 1,
   },
-  tipoTag: {
-    backgroundColor: "#f1effd",
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+  tagBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#EAEAEA',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#918CBC',
   },
-  tipoText: {
-    fontSize: 12,
-    color: "#291f75",
-    fontWeight: "bold",
+  tagText: {
+    fontSize: 11,
+    color: '#291F75',
+    fontFamily: 'Nunito-Bold',
   },
   body: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   image: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 16,
+    resizeMode: 'cover',
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 16,
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   titulo: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#291f75",
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#291F75',
+    fontFamily: 'Nunito-Bold',
+    marginBottom: 4,
   },
   descricao: {
     fontSize: 13,
-    color: "#333",
+    color: '#584CAF',
+    fontFamily: 'Nunito-Regular',
   },
   footer: {
-    flexDirection: "column",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
   },
   endereco: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   enderecoText: {
-    marginLeft: 4,
+    marginLeft: 6,
     fontSize: 13,
-    color: "#291f75",
+    color: '#291F75',
+    fontFamily: 'Nunito-SemiBold',
   },
-  botoes: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  botaoEditar: {
-    borderColor: "#3b73c4",
+  botaoDenunciar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
+    borderColor: '#D25A5A',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
   },
-  botaoEditarText: {
-    color: "#3b73c4",
-    fontWeight: "500",
-  },
-  botaoExcluir: {
-    borderColor: "#ff5e5e",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  botaoExcluirText: {
-    color: "#ff5e5e",
-    fontWeight: "500",
+  botaoDenunciarText: {
+    fontSize: 13,
+    color: '#D25A5A',
+    fontFamily: 'Nunito-Bold',
   },
 });

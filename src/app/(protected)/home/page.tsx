@@ -12,18 +12,23 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { AuthContext } from '@/context/user-context';
 import { useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import Constants from 'expo-constants';
+import Constants from 'expo-constants'; // Importar Constants
+
 interface UserData {
   id: number;
   name: string;
   email: string;
   cpf: string;
+  createdAt?: string;
+  updatedAt?: string;
+  restores?: any[];
 }
 
 interface CategoryData {
@@ -38,6 +43,7 @@ interface DepartmentData {
   name: string;
   createdAt: string;
   updatedAt: string;
+  admins?: any[];
 }
 
 interface PostData {
@@ -50,8 +56,8 @@ interface PostData {
   neighborhood: string;
   publicId?: string;
   publicUrl?: string;
-  latitude: number | null;
-  longitude: number | null;
+  latitude: string | null;
+  longitude: string | null;
   dateInit: string | null;
   dateEnd: string | null;
   comment: string | null;
@@ -172,80 +178,83 @@ const HomePage = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Feather name="bell" size={24} color="#291F75" />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.fixedHeaderArea}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Zelus</Text>
+          <TouchableOpacity style={styles.headerIcon}>
+            <Feather name="bell" size={24} color="#291F75" />
+          </TouchableOpacity>
+        </View>
 
-      {user && (
-        <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
-      )}
+        {user && (
+          <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
+        )}
 
-      <View style={styles.searchRow}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Buscar solicitações..."
-          placeholderTextColor="#918CBC"
-          style={styles.searchInput}
-        />
-        <TouchableOpacity style={styles.searchBtn}>
-          <Feather name="search" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.searchRow}>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar solicitações..."
+            placeholderTextColor="#918CBC"
+            style={styles.searchInput}
+          />
+          <TouchableOpacity style={styles.searchBtn}>
+            <Feather name="search" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={BANNER_WIDTH + CARD_MARGIN}
-        decelerationRate="fast"
-        onMomentumScrollEnd={e => {
-          const idx = Math.round(
-            e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
-          );
-          setBannerIndex(idx);
-        }}
-        contentContainerStyle={styles.bannerScrollViewContent}
-      >
-        {BANNERS.map((_, i) => (
-          <View key={i} style={styles.bannerCard}>
-            <View style={styles.bannerContent}>
-              <Text style={styles.bannerTitle}>
-                Ajude a prefeitura{"\n"}a te Ajudar!
-              </Text>
-              <View style={styles.bannerSubtitleBox}>
-                <Text style={styles.bannerSubtitle}>Exemplo de texto</Text>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={BANNER_WIDTH + CARD_MARGIN}
+          decelerationRate="fast"
+          onMomentumScrollEnd={e => {
+            const idx = Math.round(
+              e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
+            );
+            setBannerIndex(idx);
+          }}
+          contentContainerStyle={styles.bannerScrollViewContent}
+        >
+          {BANNERS.map((_, i) => (
+            <View key={i} style={styles.bannerCard}>
+              <View style={styles.bannerContent}>
+                <Text style={styles.bannerTitle}>
+                  Ajude a prefeitura{"\n"}a te Ajudar!
+                </Text>
+                <View style={styles.bannerSubtitleBox}>
+                  <Text style={styles.bannerSubtitle}>Exemplo de texto</Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
 
-      <View style={styles.bannerDotsRow}>
-        {BANNERS.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.bannerDot,
-              i === bannerIndex && styles.bannerDotActive,
-            ]}
-          />
-        ))}
-      </View>
+        <View style={styles.bannerDotsRow}>
+          {BANNERS.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.bannerDot,
+                i === bannerIndex && styles.bannerDotActive,
+              ]}
+            />
+          ))}
+        </View>
 
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
-        <TouchableOpacity style={styles.filterButton}>
-          <MaterialIcons name="filter-list" size={18} color="#FFFFFF" />
-          <Text style={styles.filterText}>Filtrar</Text>
-        </TouchableOpacity>
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
+          <TouchableOpacity style={styles.filterButton}>
+            <MaterialIcons name="filter-list" size={18} color="#FFFFFF" />
+            <Text style={styles.filterText}>Filtrar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isPostsLoading && !isPostsFetching ? (
         <View style={styles.loadingRequestsContainer}>
+          <ActivityIndicator size="large" color="#291F75" />
           <Text style={styles.loadingText}>Carregando solicitações...</Text>
         </View>
       ) : hasPostsError ? (
@@ -349,6 +358,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F8F9',
     paddingTop: Constants.statusBarHeight,
   },
+  fixedHeaderArea: {
+    backgroundColor: '#F7F8F9',
+    paddingBottom: 0,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -393,7 +406,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: '#F7F8F9',
   },
   headerTitle: {
     fontFamily: 'Nunito-Bold',
@@ -487,7 +499,7 @@ const styles = StyleSheet.create({
   bannerDotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -40, // Ajuste para trazer mais para perto do banner
+    marginTop: -40,
     marginBottom: 20,
   },
   bannerDot: {
@@ -506,6 +518,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 16,
+    marginTop: 20,
   },
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
@@ -537,7 +550,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20, // Consistência
+    marginHorizontal: 20,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,

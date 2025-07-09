@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-
+import Constants from 'expo-constants';
 type FAQ = {
   id: string;
   question: string;
@@ -35,7 +35,7 @@ export default function HelpScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <TouchableOpacity onPress={() => router.push('/(protected)/Conta/page')} style={styles.backButton}>
         <Ionicons name="arrow-back" size={20} color="#291F75" />
         <Text style={styles.backText}>Voltar</Text>
       </TouchableOpacity>
@@ -66,7 +66,7 @@ export default function HelpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff', paddingTop: Constants.statusBarHeight },
   backButton: {
     flexDirection: 'row',
     backgroundColor: '#F8F7FF',

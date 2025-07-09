@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {View,Text,StyleSheet,TouchableOpacity,ActivityIndicator,Animated,} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import {useRouter} from 'expo-router'
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
-
+import Constants from 'expo-constants';
 type Notification = {
   id: string;
   title: string;
@@ -22,7 +22,7 @@ export default function PaginaDeNotificacoes() {
   const [activeTab, setActiveTab] = useState<'Tudo' | 'Não Lidas'>('Tudo');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigation = useNavigation();
+  const navigation = useRouter();
   const globalDataRef = useRef<Notification[]>(NOTIFICACOES_INICIAIS);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function PaginaDeNotificacoes() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.push('/(protected)/Conta/page')}>
           <Ionicons name="arrow-back" size={18} color="#291F75" />
           <Text style={styles.backText}>Voltar</Text>
         </TouchableOpacity>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: Constants.statusBarHeight,
   },
   header: {
     marginBottom: 20,

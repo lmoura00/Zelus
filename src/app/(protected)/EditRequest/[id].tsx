@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useContext, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,16 +10,16 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-} from "react-native";
-import { useRouter } from "expo-router";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import DropDownPicker from "react-native-dropdown-picker";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import * as ImagePicker from "expo-image-picker";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { AuthContext } from "@/context/user-context";
-import { AxiosError } from "axios";
-import Constants from "expo-constants";
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import DropDownPicker from 'react-native-dropdown-picker';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as ImagePicker from 'expo-image-picker';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AuthContext } from '@/context/user-context';
+import { AxiosError } from 'axios';
+import Constants from 'expo-constants';
 
 interface CategoryApiData {
   id: number;
@@ -33,7 +33,7 @@ interface DepartmentApiData {
   name: string;
   createdAt: string;
   updatedAt: string;
-  admins: any[];
+  admins?: any[];
 }
 
 interface DropdownItem {
@@ -41,47 +41,74 @@ interface DropdownItem {
   value: string;
 }
 
-interface ViaCepResponse {
-  cep: string;
-  logradouro: string;
-  complemento: string;
-  bairro: string;
-  localidade: string;
-  uf: string;
-  ibge: string;
-  gia: string;
-  ddd: string;
-  siafi: string;
-  erro?: boolean;
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  cpf: string;
+  createdAt?: string;
+  updatedAt?: string;
+  restores?: any[];
 }
 
-interface CreatePostPayload {
+interface CategoryData {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DepartmentData {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  admins?: any[];
+}
+
+interface PostData {
+  id: number;
   title: string;
   description: string;
+  status: string;
   address: string;
   cep: string;
   neighborhood: string;
-  latitude?: number | null;
-  longitude?: number | null;
+  publicId?: string;
+  publicUrl?: string;
+  latitude: string | null;
+  longitude: string | null;
+  dateInit: string | null;
+  dateEnd: string | null;
+  comment: string | null;
+  number?: number;
   categoryId: number;
+  userId: number;
   departmentId: number;
-  file: File | null;
+  createdAt: string;
+  updatedAt: string;
+  category: CategoryData;
+  department: DepartmentData;
+  user: UserData;
 }
 
-const CreateRequestScreen = () => {
+const EditRequestScreen = () => {
   const router = useRouter();
-  const { authenticatedRequest, token } = useContext(AuthContext);
+  const { id } = useLocalSearchParams();
+  const postId = typeof id === 'string' ? parseInt(id, 10) : undefined;
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
-  const [cep, setCep] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
+  const { authenticatedRequest, token } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [cep, setCep] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isCepLoading, setIsCepLoading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null); // Uri da imagem selecionada ou original
+  const [imageFile, setImageFile] = useState<File | null>(null); // File object para upload (só se nova imagem for selecionada)
 
   const [openCategory, setOpenCategory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -133,6 +160,29 @@ const CreateRequestScreen = () => {
     },
   });
 
+  const fetchPostDetailsQueryFn = useCallback(async () => {
+    if (!token) throw new Error("Token de autenticação não disponível.");
+    if (postId === undefined) throw new Error("ID do post não fornecido.");
+    const response = await authenticatedRequest<PostData>('GET', `/post/${postId}`);
+    return response.data;
+  }, [token, authenticatedRequest, postId]);
+
+  const {
+    data: postDetails,
+    isLoading: isPostDetailsLoading,
+    isError: isPostDetailsError,
+    error: postDetailsError,
+    refetch: refetchPostDetails,
+  } = useQuery<PostData, AxiosError>({
+    queryKey: ['postDetails', postId, token],
+    queryFn: fetchPostDetailsQueryFn,
+    enabled: !!token && postId !== undefined,
+    staleTime: 0, // Sempre re-validar os detalhes do post para edição
+    onError: (err) => {
+      Alert.alert('Erro', `Não foi possível carregar detalhes do post: ${err.message || 'Erro desconhecido'}`);
+    },
+  });
+
   useEffect(() => {
     if (categories) {
       const mappedCategories = categories.map(cat => ({
@@ -153,13 +203,33 @@ const CreateRequestScreen = () => {
     }
   }, [departments]);
 
-  const createPostMutation = useMutation<any, AxiosError, FormData>({
+  useEffect(() => {
+    if (postDetails) {
+      setTitle(postDetails.title);
+      setDescription(postDetails.description);
+      setAddress(postDetails.address);
+      setCep(postDetails.cep);
+      setNeighborhood(postDetails.neighborhood);
+      setLatitude(postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null);
+      setLongitude(postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null);
+      setSelectedCategory(postDetails.categoryId.toString());
+      setSelectedDepartment(postDetails.departmentId.toString());
+      if (postDetails.publicUrl) {
+        setImageUri(postDetails.publicUrl);
+        setImageFile(null); // Não há file object para uma imagem existente
+      }
+    }
+  }, [postDetails]);
+
+  const updatePostMutation = useMutation<any, AxiosError, FormData>({
     mutationFn: async (formData: FormData) => {
       if (!token) {
         throw new Error("Token de autenticação não disponível.");
       }
-      console.log("Enviando dados:", formData.parts);
-      const response = await authenticatedRequest("POST", "/post", formData, {
+      if (postId === undefined) {
+        throw new Error("ID do post não definido para atualização.");
+      }
+      const response = await authenticatedRequest("PUT", `/post/${postId}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -167,13 +237,16 @@ const CreateRequestScreen = () => {
       return response.data;
     },
     onSuccess: () => {
-      Alert.alert("Sucesso", "Solicitação criada com sucesso!");
+      Alert.alert("Sucesso", "Solicitação atualizada com sucesso!");
+      queryClient.invalidateQueries(['posts']);
+      queryClient.invalidateQueries(['userPosts']);
+      queryClient.invalidateQueries(['postDetails', postId]);
       router.back();
     },
     onError: (error) => {
       Alert.alert(
         "Erro",
-        `Falha ao criar solicitação: ${
+        `Falha ao atualizar solicitação: ${
           error.response?.data?.message || error.message
         }`
       );
@@ -200,47 +273,10 @@ const CreateRequestScreen = () => {
   }, []);
 
   const handleMapPress = (event: any) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    setLatitude(latitude);
-    setLongitude(longitude);
+    const { latitude: newLat, longitude: newLon } = event.nativeEvent.coordinate;
+    setLatitude(newLat);
+    setLongitude(newLon);
   };
-
-  const fetchAddressByCep = useCallback(async (currentCep: string) => {
-    if (currentCep.length !== 8) {
-      setAddress('');
-      setNeighborhood('');
-      return;
-    }
-    setIsCepLoading(true);
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${currentCep}/json/`);
-      const data: ViaCepResponse = await response.json();
-
-      if (data.erro) {
-        Alert.alert("Erro no CEP", "CEP não encontrado ou inválido.");
-        setAddress('');
-        setNeighborhood('');
-      } else {
-        setAddress(data.logradouro);
-        setNeighborhood(data.bairro);
-      }
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível buscar o CEP. Verifique sua conexão.");
-      setAddress('');
-      setNeighborhood('');
-    } finally {
-      setIsCepLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (cep.length === 8) {
-        fetchAddressByCep(cep);
-      }
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [cep, fetchAddressByCep]);
 
   const handleSubmit = useCallback(() => {
     if (
@@ -251,7 +287,7 @@ const CreateRequestScreen = () => {
       !neighborhood ||
       !selectedCategory ||
       !selectedDepartment ||
-      !imageFile
+      (!imageUri && !imageFile) // Pelo menos uma imagem deve existir (original ou nova)
     ) {
       Alert.alert(
         "Erro",
@@ -272,9 +308,11 @@ const CreateRequestScreen = () => {
       formData.append("latitude", latitude.toString());
       formData.append("longitude", longitude.toString());
     }
-    formData.append("file", imageFile);
+    if (imageFile) { // Só anexa o 'file' se uma nova imagem foi selecionada
+      formData.append("file", imageFile);
+    }
 
-    createPostMutation.mutate(formData);
+    updatePostMutation.mutate(formData);
   }, [
     title,
     description,
@@ -285,27 +323,38 @@ const CreateRequestScreen = () => {
     selectedDepartment,
     latitude,
     longitude,
-    imageFile,
-    createPostMutation,
+    imageFile, // Depende de imageFile para saber se um novo arquivo foi selecionado
+    imageUri, // Depende de imageUri para checar se existe alguma imagem (mesmo que seja a antiga)
+    updatePostMutation,
   ]);
 
-  if (isCategoriesLoading || isDepartmentsLoading) {
+  if (isCategoriesLoading || isDepartmentsLoading || isPostDetailsLoading || isPostDetailsError) {
     return (
       <View style={styles.fullscreenLoadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
-        <Text style={styles.loadingText}>Carregando dados...</Text>
+        <Text style={styles.loadingText}>
+          {isPostDetailsLoading ? 'Carregando detalhes do post...' : 'Carregando opções...'}
+        </Text>
+        {isPostDetailsError && (
+          <TouchableOpacity onPress={() => refetchPostDetails()}>
+            <Text style={styles.retryButton}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        )}
+        {(isCategoriesError || isDepartmentsError) && (
+          <TouchableOpacity onPress={() => { router.reload(); }}>
+            <Text style={styles.retryButton}>Recarregar Página</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
 
-  if (isCategoriesError || isDepartmentsError) {
+  if (!postDetails) {
     return (
       <View style={styles.fullscreenErrorContainer}>
-        <Text style={styles.errorText}>
-          Não foi possível carregar as opções de categoria ou departamento.
-        </Text>
-        <TouchableOpacity onPress={() => {router.reload() }}>
-          <Text style={styles.retryButton}>Tentar Novamente</Text>
+        <Text style={styles.errorText}>Postagem não encontrada ou inacessível.</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.retryButton}>Voltar</Text>
         </TouchableOpacity>
       </View>
     );
@@ -318,7 +367,7 @@ const CreateRequestScreen = () => {
         <Text style={styles.backButtonText}>Voltar</Text>
       </TouchableOpacity>
 
-      <Text style={styles.header}>Criar Solicitação</Text>
+      <Text style={styles.header}>Editar Solicitação</Text>
 
       <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
         {imageUri ? (
@@ -403,11 +452,6 @@ const CreateRequestScreen = () => {
         keyboardType="numeric"
         maxLength={8}
       />
-      {isCepLoading && (
-        <View style={styles.cepLoadingIndicator}>
-          <ActivityIndicator size="small" color="#291F75" />
-        </View>
-      )}
 
       <Text style={styles.label}>Endereço:</Text>
       <TextInput
@@ -432,8 +476,8 @@ const CreateRequestScreen = () => {
         <MapView
           style={styles.map}
           initialRegion={{
-            latitude: -5.0881,
-            longitude: -42.8361,
+            latitude: latitude || -5.0881,
+            longitude: longitude || -42.8361,
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
           }}
@@ -449,12 +493,12 @@ const CreateRequestScreen = () => {
       <TouchableOpacity
         style={styles.submitButton}
         onPress={handleSubmit}
-        disabled={createPostMutation.isPending}
+        disabled={updatePostMutation.isPending}
       >
-        {createPostMutation.isPending ? (
+        {updatePostMutation.isPending ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.submitButtonText}>Criar sua Solicitação</Text>
+          <Text style={styles.submitButtonText}>Salvar Alterações</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -467,7 +511,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     flexGrow: 1,
     paddingTop: Constants.statusBarHeight,
-    paddingBottom: 140,
+    paddingBottom: 40,
   },
   fullscreenLoadingContainer: {
     flex: 1,
@@ -541,7 +585,7 @@ const styles = StyleSheet.create({
   pickedImage: {
     width: "100%",
     height: "100%",
-    resizeMode: "contain",
+    resizeMode: "cover",
   },
   label: {
     fontSize: 16,
@@ -603,12 +647,6 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito-Bold",
     textAlign: "center",
   },
-  cepLoadingIndicator: {
-    position: 'absolute',
-    right: 30,
-    top: '48%',
-    transform: [{ translateY: -10 }],
-  },
 });
 
-export default CreateRequestScreen;
+export default EditRequestScreen;
