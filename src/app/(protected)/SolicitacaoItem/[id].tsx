@@ -1,11 +1,11 @@
 import React, { useContext, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '@/context/user-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import Constants from 'expo-constants';
 
 interface UserData {
@@ -193,7 +193,7 @@ export default function SolicitacaoItemDetails() {
   const mapLongitude = postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null;
 
   const isOwner = user && postDetails.user && user.id === postDetails.user.id;
-
+  const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -272,7 +272,7 @@ export default function SolicitacaoItemDetails() {
                   latitudeDelta: 0.005,
                   longitudeDelta: 0.005,
                 }}
-                provider={PROVIDER_GOOGLE}
+                provider={mapProvider}
                 scrollEnabled={false}
                 zoomEnabled={false}
                 pitchEnabled={false}
