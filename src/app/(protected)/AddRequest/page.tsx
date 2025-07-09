@@ -14,7 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DropDownPicker from "react-native-dropdown-picker";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT, MapViewProps } from "react-native-maps";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AuthContext } from "@/context/user-context";
@@ -55,18 +55,6 @@ interface ViaCepResponse {
   erro?: boolean;
 }
 
-interface CreatePostPayload {
-  title: string;
-  description: string;
-  address: string;
-  cep: string;
-  neighborhood: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  categoryId: number;
-  departmentId: number;
-  file: File | null;
-}
 
 const CreateRequestScreen = () => {
   const router = useRouter();
@@ -158,7 +146,6 @@ const CreateRequestScreen = () => {
       if (!token) {
         throw new Error("Token de autenticação não disponível.");
       }
-      console.log("Enviando dados:", formData.parts);
       const response = await authenticatedRequest("POST", "/post", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -288,6 +275,8 @@ const CreateRequestScreen = () => {
     imageFile,
     createPostMutation,
   ]);
+
+  const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
   if (isCategoriesLoading || isDepartmentsLoading) {
     return (
@@ -438,7 +427,8 @@ const CreateRequestScreen = () => {
             longitudeDelta: 0.05,
           }}
           onPress={handleMapPress}
-          provider={PROVIDER_GOOGLE}
+          provider={mapProvider}
+          
         >
           {latitude !== null && longitude !== null && (
             <Marker coordinate={{ latitude, longitude }} />
