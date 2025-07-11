@@ -1,1 +1,1 @@
-export const api =  "https://infra-timon-on.onrender.com"
+export const api = process.env.EXPO_PUBLIC_API_URL;

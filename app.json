@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lsm-00.Zelus",
       "config": {
-        "googleMapsApiKey": "AIzaSyDOAZI4PpuctFzMhAloX_Ugs_pl0hLeG_c"
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_IOS_API_KEY"
       }
     },
     "android": {
@@ -29,7 +29,7 @@
       "package": "com.lsm_00.Zelus",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDUyp7OcPnMcwwQejUCRkqGL4hdKd3wq2k"
+          "apiKey": "process.env.GOOGLE_MAPS_ANDROID_API_KEY"
         }
       },
       "permissions": [
