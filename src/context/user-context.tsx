@@ -8,6 +8,33 @@ type UserData = {
   name: string;
   email: string;
   cpf: string;
+  avatarUrl: string | null;
+  avatarId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  posts: Array<{
+    id: number;
+    title: string;
+    description: string;
+    status: string;
+    address: string;
+    cep: string;
+    neighborhood: string;
+    publicId: string;
+    publicUrl: string;
+    latitude: string;
+    longitude: string;
+    dateInit: string | null;
+    dateEnd: string | null;
+    comment: string | null;
+    number: number;
+    categoryId: number;
+    userId: number;
+    departmentId: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  restores: Array<any>
 };
 
 type AuthResponse = {

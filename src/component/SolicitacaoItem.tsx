@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Reutilize as interfaces de tipagem da PostData
 interface UserData {
   id: number;
   name: string;
@@ -37,8 +36,8 @@ interface PostData {
   neighborhood: string;
   publicId?: string;
   publicUrl?: string;
-  latitude: number | null; 
-  longitude: number | null; 
+  latitude: string | null; 
+  longitude: string | null; 
   dateInit: string | null;
   dateEnd: string | null;
   comment: string | null;
@@ -66,19 +65,36 @@ export default function SolicitacaoItem({
   onDenounce,
   formatTimeAgo,
 }: SolicitacaoItemProps) {
+
+  const getStatusBadgeProps = (status: string) => {
+    switch (status) {
+      case 'PENDENTE': return { text: 'Pendente', color: '#FFB800', backgroundColor: '#FFF6E3' };
+      case 'EM ANDAMENTO': return { text: 'Em Andamento', color: '#3B73C4', backgroundColor: '#E3EDF9' };
+      case 'CONCLUIDO': return { text: 'Concluído', color: '#5cb85c', backgroundColor: '#E6FAEC' };
+      case 'RECUSADO': return { text: 'Recusado', color: '#D25A5A', backgroundColor: '#FBE6E6' };
+      default: return { text: 'Desconhecido', color: '#999', backgroundColor: '#F0F0F0' };
+    }
+  };
+
+  const statusProps = getStatusBadgeProps(item.status);
+
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={() => onPress(item.id)}
       activeOpacity={0.8}
     >
-      <View style={styles.tagBadge}>
-        
-        <Text style={styles.tagText}>{item.category?.name || 'Tipo Desconhecido'}</Text>
+      <View style={styles.headerTopRight}>
+        <View style={styles.tagBadge}>
+          <Text style={styles.tagText}>{item.category?.name || 'Tipo Desconhecido'}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusProps.backgroundColor, borderColor: statusProps.color }]}>
+          <Text style={[styles.statusText, { color: statusProps.color }]}>{statusProps.text}</Text>
+        </View>
       </View>
+
       <View style={styles.header}>
         <Feather name="user" size={16} color="#291F75" />
-       
         <Text style={styles.userText}>
           {item.user?.name || 'Usuário Desconhecido'} • {formatTimeAgo(item.createdAt)}
         </Text>
@@ -125,10 +141,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  headerTopRight: {
+    flexDirection: 'row',
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+  },
+  tagBadge: {
+    backgroundColor: '#EAEAEA',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#918CBC',
+    marginRight: 8,
+  },
+  tagText: {
+    fontSize: 11,
+    color: '#291F75',
+    fontFamily: 'Nunito-Bold',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: 'Nunito-Bold',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    marginTop: 25,
   },
   userText: {
     marginLeft: 8,
@@ -136,22 +184,6 @@ const styles = StyleSheet.create({
     color: '#291F75',
     fontFamily: 'Nunito-Bold',
     flex: 1,
-  },
-  tagBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#EAEAEA',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#918CBC',
-  },
-  tagText: {
-    fontSize: 11,
-    color: '#291F75',
-    fontFamily: 'Nunito-Bold',
   },
   body: {
     flexDirection: 'row',

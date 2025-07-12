@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,14 +15,25 @@ import { AuthContext } from "@/context/user-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
+import axios from "axios";
+import { api } from "@/api";
 
 const { width } = Dimensions.get("window");
 
 const ContaPage = () => {
-  const { user, isLoading, logout } = useContext(AuthContext);
+  const { user, isLoading, logout, token } = useContext(AuthContext);
   const router = useRouter();
 
-  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(
+    user?.avatarUrl || null
+  );
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (user?.avatarUrl && !profileImageUri) {
+      setProfileImageUri(user.avatarUrl);
+    }
+  }, [user?.avatarUrl, profileImageUri]);
 
   const handleLogout = useCallback(() => {
     Alert.alert(
@@ -47,21 +58,69 @@ const ContaPage = () => {
   }, [logout, router]);
 
   const pickImage = useCallback(async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setProfileImageUri(result.assets[0].uri);
-      Alert.alert(
-        "Sucesso",
-        "Foto de perfil atualizada localmente. (Envio ao servidor pendente)"
-      );
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedUri = result.assets[0].uri;
+        setProfileImageUri(selectedUri);
+        await uploadImage(selectedUri);
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Falha ao selecionar imagem.");
     }
-  }, []);
+  }, [token, user?.id]);
+
+  const uploadImage = useCallback(
+    async (uri: string) => {
+      if (!user?.id || !token) {
+        Alert.alert("Erro", "Dados do usuário ou token não disponíveis.");
+        return;
+      }
+
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("avatar", {
+        uri,
+        name: `avatar-${user.id}.jpg`,
+        type: "image/jpeg",
+      } as any);
+
+      try {
+        const response = await axios.put(
+          `${api}/user/${user.id}`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.data && response.data.avatarUrl) {
+          setProfileImageUri(response.data.avatarUrl);
+          Alert.alert("Sucesso", "Foto de perfil atualizada!");
+        } else {
+          Alert.alert("Erro", "Resposta inesperada do servidor.");
+        }
+      } catch (error: any) {
+        console.error("Erro ao fazer upload da imagem:", error);
+        Alert.alert(
+          "Erro ao atualizar",
+          error.response?.data?.message || "Não foi possível atualizar a foto."
+        );
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [user?.id, token]
+  );
 
   const navigateToNotifications = useCallback(() => {
     router.push("/Notification/page");
@@ -75,11 +134,13 @@ const ContaPage = () => {
     router.push("/Help/page");
   }, [router]);
 
-  if (isLoading) {
+  if (isLoading || isUploading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
-        <Text style={styles.loadingText}>Carregando perfil...</Text>
+        <Text style={styles.loadingText}>
+          {isUploading ? "Atualizando foto..." : "Carregando perfil..."}
+        </Text>
       </View>
     );
   }
@@ -94,7 +155,11 @@ const ContaPage = () => {
       </View>
 
       <View style={styles.profile}>
-        <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+        <TouchableOpacity
+          onPress={pickImage}
+          style={styles.avatarWrapper}
+          disabled={isUploading}
+        >
           {profileImageUri ? (
             <Image source={{ uri: profileImageUri }} style={styles.avatar} />
           ) : (

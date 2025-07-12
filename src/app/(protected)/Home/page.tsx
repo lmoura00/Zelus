@@ -13,80 +13,41 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { AuthContext } from '@/context/user-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import Constants from 'expo-constants'; // Importar Constants
-
-interface UserData {
-  id: number;
-  name: string;
-  email: string;
-  cpf: string;
-  createdAt?: string;
-  updatedAt?: string;
-  restores?: any[];
-}
-
-interface CategoryData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface DepartmentData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  admins?: any[];
-}
-
-interface PostData {
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  address: string;
-  cep: string;
-  neighborhood: string;
-  publicId?: string;
-  publicUrl?: string;
-  latitude: string | null;
-  longitude: string | null;
-  dateInit: string | null;
-  dateEnd: string | null;
-  comment: string | null;
-  number?: number;
-  categoryId: number;
-  userId: number;
-  departmentId: number;
-  createdAt: string;
-  updatedAt: string;
-  category: CategoryData;
-  department: DepartmentData;
-  user: UserData;
-}
+import Constants from 'expo-constants';
+import DropDownPicker from 'react-native-dropdown-picker';
+import SolicitacaoItem from '@/component/SolicitacaoItem';
+import { UserData, CategoryData, DepartmentData, PostData, CommentData, BannerData } from '@/types/app';
 
 const { width, height } = Dimensions.get('window');
 
 const CARD_MARGIN = 16;
 const BANNER_WIDTH = width - CARD_MARGIN * 2;
 const BANNER_HEIGHT = BANNER_WIDTH * 0.45;
-const BANNERS = [0, 1, 2, 3];
 
 const HomePage = () => {
   const router = useRouter();
   const { user, isLoading: isAuthLoading, error: authError, token, authenticatedRequest } = useContext(AuthContext);
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostData | null>(null);
   const [bannerIndex, setBannerIndex] = useState(0);
+
+  const [openStatusFilter, setOpenStatusFilter] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [statusFilterItems, setStatusFilterItems] = useState([
+    { label: 'Todos (Andamento/Concluídas)', value: 'TODOS' },
+    { label: 'Em Andamento', value: 'EM ANDAMENTO' },
+    { label: 'Concluídas', value: 'CONCLUIDO' },
+  ]);
 
   const fetchPostsQueryFn = useCallback(async () => {
     if (!token) {
@@ -115,6 +76,44 @@ const HomePage = () => {
     }
   });
 
+  const fetchBannersQueryFn = useCallback(async () => {
+    if (!token) throw new Error("Token de autenticação não disponível.");
+    const response = await authenticatedRequest<BannerData[]>('GET', '/banners');
+    return response.data;
+  }, [token, authenticatedRequest]);
+
+  const {
+    data: bannersData,
+    isLoading: isBannersLoading,
+    isError: isBannersError,
+    error: bannersError,
+    refetch: refetchBanners,
+  } = useQuery<BannerData[], AxiosError>({
+    queryKey: ['banners', token],
+    queryFn: fetchBannersQueryFn,
+    enabled: !!token,
+    staleTime: Infinity,
+    onError: (err) => {
+      Alert.alert('Erro', `Não foi possível carregar banners: ${err.message || 'Erro desconhecido'}`);
+    },
+  });
+
+  const denouncePostMutation = useMutation<any, AxiosError, number>({
+    mutationFn: async (postIdToDenounce: number) => {
+      if (!token) throw new Error("Token de autenticação não disponível.");
+      const response = await authenticatedRequest('PATCH', `/post/complait/${postIdToDenounce}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      Alert.alert("Sucesso", "Solicitação denunciada com sucesso!");
+      setModalVisible(false);
+      queryClient.invalidateQueries(['posts']);
+    },
+    onError: (error) => {
+      Alert.alert("Erro", `Falha ao denunciar solicitação: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
   useEffect(() => {
     if (hasPostsError && postsError) {
       Alert.alert('Erro ao carregar solicitações', postsError.message || 'Erro desconhecido ao carregar.');
@@ -130,17 +129,34 @@ const HomePage = () => {
     }
   }, [user, isAuthLoading, authError, router, token]);
 
-  const filteredRequests = (requestsData || []).filter((item: PostData) =>
-    item.title.toLowerCase().includes(search.toLowerCase()) ||
-    item.description.toLowerCase().includes(search.toLowerCase()) ||
-    item.category.name.toLowerCase().includes(search.toLowerCase()) ||
-    item.user.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredRequests = (requestsData || []).filter((item: PostData) => {
+    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
+      item.description.toLowerCase().includes(search.toLowerCase()) ||
+      item.category.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.user.name.toLowerCase().includes(search.toLowerCase());
+
+    const isAllowedBaseStatus = item.status === 'EM ANDAMENTO' || item.status === 'CONCLUIDO';
+    
+    let matchesStatusFilter = true;
+    if (statusFilter !== 'TODOS') {
+      matchesStatusFilter = item.status === statusFilter;
+    }
+
+    return matchesSearch && isAllowedBaseStatus && matchesStatusFilter;
+  });
 
   const handleDenounce = (item: PostData) => {
     setSelectedPost(item);
     setModalVisible(true);
   };
+
+  const handleDenounceConfirm = useCallback(() => {
+    if (selectedPost?.id) {
+      denouncePostMutation.mutate(selectedPost.id);
+    } else {
+      Alert.alert("Erro", "ID da solicitação não disponível para denúncia.");
+    }
+  }, [selectedPost, denouncePostMutation]);
 
   const handleViewPostDetails = (postId: number) => {
     router.push(`/SolicitacaoItem/${postId}`);
@@ -210,29 +226,39 @@ const HomePage = () => {
           snapToInterval={BANNER_WIDTH + CARD_MARGIN}
           decelerationRate="fast"
           onMomentumScrollEnd={e => {
-            const idx = Math.round(
-              e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
-            );
-            setBannerIndex(idx);
+            if (bannersData && bannersData.length > 0) {
+              const idx = Math.round(
+                e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
+              );
+              setBannerIndex(idx);
+            }
           }}
           contentContainerStyle={styles.bannerScrollViewContent}
         >
-          {BANNERS.map((_, i) => (
-            <View key={i} style={styles.bannerCard}>
-              <View style={styles.bannerContent}>
-                <Text style={styles.bannerTitle}>
-                  Ajude a prefeitura{"\n"}a te Ajudar!
-                </Text>
-                <View style={styles.bannerSubtitleBox}>
-                  <Text style={styles.bannerSubtitle}>Exemplo de texto</Text>
-                </View>
-              </View>
+          {isBannersLoading ? (
+            <View style={[styles.bannerCard, styles.bannerLoadingOrError]}>
+              <ActivityIndicator size="large" color="#291F75" />
             </View>
-          ))}
+          ) : isBannersError || !bannersData || bannersData.length === 0 ? (
+            <View style={[styles.bannerCard, styles.bannerLoadingOrError, { backgroundColor: '#F0F0F0' }]}>
+              <Text style={styles.bannerLoadingErrorText}>Banners indisponíveis</Text>
+            </View>
+          ) : (
+            bannersData.map((banner, i) => (
+              <TouchableOpacity
+                key={banner.id}
+                style={styles.bannerCard}
+                onPress={() => Linking.openURL(banner.linkTo)}
+                activeOpacity={0.8}
+              >
+                <Image source={{ uri: banner.imageUrl }} style={styles.bannerImage} />
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
 
         <View style={styles.bannerDotsRow}>
-          {BANNERS.map((_, i) => (
+          {(bannersData || []).map((_, i) => (
             <View
               key={i}
               style={[
@@ -245,10 +271,26 @@ const HomePage = () => {
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
-          <TouchableOpacity style={styles.filterButton}>
-            <MaterialIcons name="filter-list" size={18} color="#FFFFFF" />
-            <Text style={styles.filterText}>Filtrar</Text>
-          </TouchableOpacity>
+          <View style={styles.filterDropdownWrapper}>
+            <DropDownPicker
+              listMode="SCROLLVIEW"
+              open={openStatusFilter}
+              value={statusFilter}
+              items={statusFilterItems}
+              setOpen={setOpenStatusFilter}
+              setValue={setStatusFilter}
+              setItems={setStatusFilterItems}
+              placeholder="Filtrar por status"
+              style={styles.dropdown}
+              dropDownContainerStyle={styles.dropdownContainer}
+              textStyle={styles.dropdownText}
+              labelStyle={styles.dropdownLabel}
+              tickIconStyle={styles.dropdownTickIcon}
+              arrowIconStyle={styles.dropdownArrowIcon}
+              zIndex={3000}
+              zIndexInverse={1000}
+            />
+          </View>
         </View>
       </View>
 
@@ -269,42 +311,12 @@ const HomePage = () => {
           data={filteredRequests}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }: { item: PostData }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => handleViewPostDetails(item.id)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.tagBadge}>
-                <Text style={styles.tagText}>{item.category.name}</Text>
-              </View>
-              <View style={styles.cardHeader}>
-                <Feather name="user" size={16} color="#291F75" />
-                <Text style={styles.cardUser}>
-                  {item.user.name} • {formatTimeAgo(item.createdAt)}
-                </Text>
-              </View>
-              <View style={styles.cardContent}>
-                {item.publicUrl ? (
-                  <Image source={{ uri: item.publicUrl }} style={styles.cardImage} />
-                ) : (
-                  <MaterialCommunityIcons name="image-off" size={48} color="#CCCCCC" style={styles.cardImagePlaceholder} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-                </View>
-              </View>
-              <View style={styles.cardFooter}>
-                <View style={styles.addressRow}>
-                  <Feather name="map-pin" size={14} color="#291F75" />
-                  <Text style={styles.cardAddress}>{item.address}</Text>
-                </View>
-                <TouchableOpacity style={styles.reportButton} onPress={(e) => { e.stopPropagation(); handleDenounce(item); }}>
-                  <Feather name="flag" size={14} color="#D25A5A" style={{ marginRight: 4 }} />
-                  <Text style={styles.reportText}>Denunciar</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+            <SolicitacaoItem
+              item={item}
+              onPress={handleViewPostDetails}
+              onDenounce={handleDenounce}
+              formatTimeAgo={formatTimeAgo}
+            />
           )}
           contentContainerStyle={styles.flatListContent}
           ListEmptyComponent={() => (
@@ -341,8 +353,16 @@ const HomePage = () => {
               <TouchableOpacity style={styles.modalCancel} onPress={() => setModalVisible(false)}>
                 <Text style={styles.modalCancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirm} onPress={() => { }}>
-                <Text style={styles.modalConfirmText}>Denunciar Post</Text>
+              <TouchableOpacity
+                style={styles.modalConfirm}
+                onPress={handleDenounceConfirm}
+                disabled={denouncePostMutation.isPending}
+              >
+                {denouncePostMutation.isPending ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Denunciar Post</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -465,36 +485,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bannerCard: {
-    width: BANNER_WIDTH,
+    width: BANNER_WIDTH ,
     height: BANNER_HEIGHT,
     backgroundColor: '#EFAE0C',
     borderRadius: 12,
-    padding: 20,
     marginRight: CARD_MARGIN,
     justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
-  bannerContent: {
-    flex: 1,
-    justifyContent: 'center',
+  bannerLoadingOrError: {
+    backgroundColor: '#E8E1FA',
   },
-  bannerTitle: {
-    fontFamily: 'Nunito-Bold',
-    fontSize: 22,
-    color: '#291F75',
-    lineHeight: 28,
+  bannerLoadingErrorText: {
+    fontFamily: 'Nunito-SemiBold',
+    color: '#999',
   },
-  bannerSubtitleBox: {
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  bannerSubtitle: {
-    fontFamily: 'Nunito-Bold',
-    fontSize: 16,
-    color: '#291F75',
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
   bannerDotsRow: {
     flexDirection: 'row',
@@ -519,30 +529,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
     marginTop: 20,
+    zIndex: 2000,
   },
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 18,
     color: '#291F75',
   },
-  filterButton: {
-    flexDirection: 'row',
-    backgroundColor: '#291F75',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+  filterDropdownWrapper: {
+    width: 150,
   },
-  filterText: {
-    color: '#FFFFFF',
-    marginLeft: 8,
-    fontSize: 15,
+  dropdown: {
+    borderColor: '#D8D0ED',
+    borderRadius: 10,
+    backgroundColor: '#E8E1FA',
+    minHeight: 40,
+  },
+  dropdownContainer: {
+    borderColor: '#D8D0ED',
+    borderRadius: 10,
+    backgroundColor: '#F8F7FF',
+    maxHeight: 200,
+  },
+  dropdownText: {
     fontFamily: 'Nunito-SemiBold',
+    fontSize: 14,
+    color: '#291F75',
+  },
+  dropdownLabel: {
+    fontFamily: 'Nunito-SemiBold',
+    color: '#291F75',
+  },
+  dropdownTickIcon: {
+    width: 18,
+    height: 18,
+  },
+  dropdownArrowIcon: {
+    width: 18,
+    height: 18,
   },
   flatListContent: {
     paddingBottom: height * 0.15,
@@ -723,4 +747,5 @@ const styles = StyleSheet.create({
     color: '#918CBC',
   },
 });
+
 export default HomePage;

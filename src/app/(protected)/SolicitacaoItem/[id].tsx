@@ -1,7 +1,7 @@
 import React, { useContext, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Alert, ActivityIndicator, TouchableOpacity, Dimensions, Platform, TextInput } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '@/context/user-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
@@ -22,7 +22,7 @@ interface CategoryData {
   id: number;
   name: string;
   createdAt: string;
-  updatedAt: string;
+  id?: number;
 }
 
 interface DepartmentData {
@@ -59,6 +59,16 @@ interface PostData {
   user: UserData;
 }
 
+interface CommentData {
+  id: number;
+  text: string;
+  userId: number;
+  postId: number;
+  createdAt: string;
+  updatedAt: string;
+  user: UserData;
+}
+
 const { width } = Dimensions.get('window');
 
 export default function SolicitacaoItemDetails() {
@@ -67,9 +77,10 @@ export default function SolicitacaoItemDetails() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [newCommentText, setNewCommentText] = useState('');
 
   const postId = typeof id === 'string' ? parseInt(id, 10) : undefined;
-
+  console.log('Post ID:', postId);
   const fetchPostDetailsQueryFn = useCallback(async () => {
     if (!token) {
       throw new Error("Token de autenticação não disponível.");
@@ -96,6 +107,45 @@ export default function SolicitacaoItemDetails() {
     retry: 1,
     onError: (err) => {
       Alert.alert('Erro', `Não foi possível carregar os detalhes do post: ${err.message || 'Erro desconhecido'}`);
+    },
+  });
+
+  const fetchCommentsQueryFn = useCallback(async () => {
+    if (!token || postId === undefined) return [];
+    const response = await authenticatedRequest<CommentData[]>('GET', `/post/${postId}/comments`);
+    return response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [token, authenticatedRequest, postId]);
+
+  const {
+    data: comments,
+    isLoading: isCommentsLoading,
+    isError: isCommentsError,
+    error: commentsError,
+    refetch: refetchComments,
+  } = useQuery<CommentData[], AxiosError>({
+    queryKey: ['postComments', postId],
+    queryFn: fetchCommentsQueryFn,
+    enabled: !!token && postId !== undefined,
+    onError: (err) => {
+      Alert.alert('Erro', `Não foi possível carregar os comentários: ${err.message || 'Erro desconhecido'}`);
+    },
+  });
+
+  const createCommentMutation = useMutation<CommentData, AxiosError, string>({
+    mutationFn: async (commentText: string) => {
+      if (!token || postId === undefined) {
+        throw new Error("Token de autenticação ou ID do post não disponível.");
+      }
+      const response = await authenticatedRequest('POST', `/post/${postId}/comments`, { text: commentText });
+      return response.data;
+    },
+    onSuccess: () => {
+      setNewCommentText('');
+      queryClient.invalidateQueries(['postComments', postId]);
+      Alert.alert('Sucesso', 'Comentário adicionado!');
+    },
+    onError: (err) => {
+      Alert.alert('Erro', `Falha ao adicionar comentário: ${err.response?.data?.message || err.message}`);
     },
   });
 
@@ -145,6 +195,14 @@ export default function SolicitacaoItemDetails() {
     );
   }, [postDetails, deletePostMutation]);
 
+  const handlePostComment = useCallback(() => {
+    if (!newCommentText.trim()) {
+      Alert.alert('Erro', 'O comentário não pode estar vazio.');
+      return;
+    }
+    createCommentMutation.mutate(newCommentText);
+  }, [newCommentText, createCommentMutation]);
+
   const images = postDetails?.publicUrl ? [postDetails.publicUrl] : [];
 
   const goToPreviousImage = () => {
@@ -158,7 +216,7 @@ export default function SolicitacaoItemDetails() {
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'PENDENTE': return { text: 'Pendente', icon: 'clock-time-four-outline', color: '#FFB800' };
-      case 'EM_ANDAMENTO': return { text: 'Em Andamento', icon: 'refresh', color: '#3B73C4' };
+      case 'EM ANDAMENTO': return { text: 'Em Andamento', icon: 'refresh', color: '#3B73C4' };
       case 'CONCLUIDO': return { text: 'Concluído', icon: 'check-circle-outline', color: '#5cb85c' };
       case 'RECUSADO': return { text: 'Recusado', icon: 'close-circle-outline', color: '#D25A5A' };
       default: return { text: 'Desconhecido', icon: 'help-circle-outline', color: '#999' };
@@ -189,11 +247,25 @@ export default function SolicitacaoItemDetails() {
 
   const statusInfo = getStatusDisplay(postDetails.status);
 
-  const mapLatitude = postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null;
-  const mapLongitude = postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null;
+  const parsedLatitude = postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null;
+  const parsedLongitude = postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null;
+
+  const mapLatitude = (typeof parsedLatitude === 'number' && !isNaN(parsedLatitude)) ? parsedLatitude : null;
+  const mapLongitude = (typeof parsedLongitude === 'number' && !isNaN(parsedLongitude)) ? parsedLongitude : null;
 
   const isOwner = user && postDetails.user && user.id === postDetails.user.id;
   const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
+
+  const acceptedStepActive = postDetails.status !== 'PENDENTE';
+  const acceptedStepCircleColor = acceptedStepActive ? statusInfo.color : '#ddd';
+  const acceptedStepTextColor = acceptedStepActive ? statusInfo.color : '#999';
+
+  const inProgressStepColor = (postDetails.status === 'EM ANDAMENTO' || postDetails.status === 'CONCLUIDO') ? statusInfo.color : '#ddd';
+  const completedStepColor = postDetails.status === 'CONCLUIDO' ? statusInfo.color : '#ddd';
+
+  const inProgressTextColor = (postDetails.status === 'EM ANDAMENTO' || postDetails.status === 'CONCLUIDO') ? statusInfo.color : '#999';
+  const completedTextColor = postDetails.status === 'CONCLUIDO' ? statusInfo.color : '#999';
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -296,31 +368,51 @@ export default function SolicitacaoItemDetails() {
         <View style={styles.statusContainer}>
           <View style={styles.statusHeader}>
             <MaterialCommunityIcons name="information-outline" size={20} color="#291F75" style={styles.statusIcon} />
-            <Text style={styles.statusTitle}>Status</Text>
+            <Text style={styles.cardTitle}>Status</Text>
             <View style={styles.currentStatusBadge}>
                 <Text style={styles.currentStatusText}>{statusInfo.text}</Text>
             </View>
           </View>
           <View style={styles.statusSteps}>
             <View style={styles.step}>
-              <View style={[styles.stepCircle, styles.stepCircleActive]}>
+              <View style={[styles.stepCircle, { backgroundColor: acceptedStepCircleColor }]}>
                 <Feather name="thumbs-up" size={16} color="#FFF" />
               </View>
-              <Text style={[styles.stepText, styles.stepTextActive]}>Aceito</Text>
+              <Text style={[styles.stepText, { color: acceptedStepTextColor }]}>Aceito</Text>
             </View>
             <View style={styles.stepLine}></View>
             <View style={styles.step}>
-              <View style={[styles.stepCircle, postDetails.status === 'EM_ANDAMENTO' || postDetails.status === 'CONCLUIDO' ? styles.stepCircleActive : styles.stepCircleInactive]}>
-                <MaterialCommunityIcons name="progress-check" size={16} color={postDetails.status === 'EM_ANDAMENTO' || postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"} />
+              <View style={[
+                styles.stepCircle,
+                { backgroundColor: inProgressStepColor }
+              ]}>
+                <MaterialCommunityIcons
+                  name="progress-check"
+                  size={16}
+                  color={postDetails.status === 'EM_ANDAMENTO' || postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"}
+                />
               </View>
-              <Text style={[styles.stepText, postDetails.status === 'EM_ANDAMENTO' || postDetails.status === 'CONCLUIDO' ? styles.stepTextActive : styles.stepTextInactive]}>Em andamento</Text>
+              <Text style={[
+                styles.stepText,
+                { color: inProgressTextColor }
+              ]}>Em andamento</Text>
             </View>
             <View style={styles.stepLine}></View>
             <View style={styles.step}>
-              <View style={[styles.stepCircle, postDetails.status === 'CONCLUIDO' ? styles.stepCircleActive : styles.stepCircleInactive]}>
-                <Feather name="check" size={16} color={postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"} />
+              <View style={[
+                styles.stepCircle,
+                { backgroundColor: completedStepColor }
+              ]}>
+                <Feather
+                  name="check"
+                  size={16}
+                  color={postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"}
+                />
               </View>
-              <Text style={[styles.stepText, postDetails.status === 'CONCLUIDO' ? styles.stepTextActive : styles.stepTextInactive]}>Concluído</Text>
+              <Text style={[
+                styles.stepText,
+                { color: completedTextColor }
+              ]}>Concluído</Text>
             </View>
           </View>
           <View style={styles.statusInfo}>
@@ -333,6 +425,55 @@ export default function SolicitacaoItemDetails() {
             )}
           </View>
         </View>
+
+        <View style={styles.commentsSection}>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="comment-multiple-outline" size={20} color="#291F75" style={styles.cardIcon} />
+            <Text style={styles.cardTitle}>Comentários ({comments?.length || 0})</Text>
+            {isCommentsLoading && <ActivityIndicator size="small" color="#291F75" style={styles.commentsLoadingIndicator} />}
+            {isCommentsError && <Text style={styles.commentsErrorText}>Erro ao carregar comentários</Text>}
+          </View>
+
+          {comments && comments.length > 0 ? (
+            comments.map((comment) => (
+              <View key={comment.id} style={styles.commentItem}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentAuthor}>{comment.user.name}</Text>
+                  <Text style={styles.commentDate}>
+                    {new Date(comment.createdAt).toLocaleDateString()} às {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </Text>
+                </View>
+                <Text style={styles.commentText}>{comment.text}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noCommentsText}>Nenhum comentário ainda.</Text>
+          )}
+
+          <View style={styles.newCommentContainer}>
+            <TextInput
+              style={styles.newCommentInput}
+              placeholder="Adicionar um comentário..."
+              placeholderTextColor="#918CBC"
+              multiline
+              value={newCommentText}
+              onChangeText={setNewCommentText}
+              editable={!createCommentMutation.isPending}
+            />
+            <TouchableOpacity 
+              style={styles.sendCommentButton} 
+              onPress={handlePostComment}
+              disabled={createCommentMutation.isPending || !newCommentText.trim()}
+            >
+              {createCommentMutation.isPending ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Ionicons name="send" size={20} color="#FFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -342,7 +483,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F7F8F9',
-    paddingBottom:120, // Ajustado para evitar corte
+    paddingBottom:120,
   },
   backButton: {
     flexDirection: 'row',
@@ -592,9 +733,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepCircleActive: {
-    backgroundColor: '#5cb85c',
-  },
   stepCircleInactive: {
     backgroundColor: '#ddd',
     borderColor: '#bbb',
@@ -605,10 +743,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Nunito-Regular',
     textAlign: 'center',
-  },
-  stepTextActive: {
-    color: '#333',
-    fontFamily: 'Nunito-SemiBold',
   },
   stepTextInactive: {
     color: '#999',
@@ -687,5 +821,89 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#291F75',
     textDecorationLine: 'underline',
+  },
+  commentsSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    width: width * 0.9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  commentsLoadingIndicator: {
+    marginLeft: 10,
+  },
+  commentsErrorText: {
+    marginLeft: 10,
+    color: '#D25A5A',
+    fontFamily: 'Nunito-Regular',
+  },
+  commentItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    marginBottom: 5,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  commentAuthor: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: 14,
+    color: '#291F75',
+  },
+  commentDate: {
+    fontFamily: 'Nunito-Regular',
+    fontSize: 12,
+    color: '#777',
+  },
+  commentText: {
+    fontFamily: 'Nunito-Regular',
+    fontSize: 14,
+    color: '#555',
+  },
+  noCommentsText: {
+    fontFamily: 'Nunito-Regular',
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  newCommentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+    paddingTop: 15,
+  },
+  newCommentInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D8D0ED',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: '#291F75',
+    marginRight: 10,
+    minHeight: 40,
+    maxHeight: 100,
+    backgroundColor: '#F8F7FF',
+  },
+  sendCommentButton: {
+    backgroundColor: '#291F75',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
