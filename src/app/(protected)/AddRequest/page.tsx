@@ -14,12 +14,18 @@ import {
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DropDownPicker from "react-native-dropdown-picker";
-import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT, MapViewProps } from "react-native-maps";
+import MapView, {
+  Marker,
+  PROVIDER_GOOGLE,
+  PROVIDER_DEFAULT,
+  MapViewProps,
+} from "react-native-maps";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AuthContext } from "@/context/user-context";
 import { AxiosError } from "axios";
 import Constants from "expo-constants";
+import * as Location from "expo-location";
 
 interface CategoryApiData {
   id: number;
@@ -55,7 +61,6 @@ interface ViaCepResponse {
   erro?: boolean;
 }
 
-
 const CreateRequestScreen = () => {
   const router = useRouter();
   const { authenticatedRequest, token } = useContext(AuthContext);
@@ -71,17 +76,33 @@ const CreateRequestScreen = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isCepLoading, setIsCepLoading] = useState(false);
 
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null
+  );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  
+
   const [openCategory, setOpenCategory] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categoryDropdownItems, setCategoryDropdownItems] = useState<DropdownItem[]>([]);
+  const [categoryDropdownItems, setCategoryDropdownItems] = useState<
+    DropdownItem[]
+  >([]);
 
   const [openDepartment, setOpenDepartment] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
-  const [departmentDropdownItems, setDepartmentDropdownItems] = useState<DropdownItem[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(
+    null
+  );
+  const [departmentDropdownItems, setDepartmentDropdownItems] = useState<
+    DropdownItem[]
+  >([]);
 
   const fetchCategoriesQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
-    const response = await authenticatedRequest<CategoryApiData[]>("GET", "/categories");
+    const response = await authenticatedRequest<CategoryApiData[]>(
+      "GET",
+      "/categories"
+    );
     return response.data;
   }, [token, authenticatedRequest]);
 
@@ -91,18 +112,26 @@ const CreateRequestScreen = () => {
     isError: isCategoriesError,
     error: categoriesError,
   } = useQuery<CategoryApiData[], AxiosError>({
-    queryKey: ['categories', token],
+    queryKey: ["categories", token],
     queryFn: fetchCategoriesQueryFn,
     enabled: !!token,
     staleTime: Infinity,
     onError: (err) => {
-      Alert.alert('Erro', `Não foi possível carregar categorias: ${err.message || 'Erro desconhecido'}`);
+      Alert.alert(
+        "Erro",
+        `Não foi possível carregar categorias: ${
+          err.message || "Erro desconhecido"
+        }`
+      );
     },
   });
 
   const fetchDepartmentsQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
-    const response = await authenticatedRequest<DepartmentApiData[]>("GET", "/departments");
+    const response = await authenticatedRequest<DepartmentApiData[]>(
+      "GET",
+      "/departments"
+    );
     return response.data;
   }, [token, authenticatedRequest]);
 
@@ -112,18 +141,23 @@ const CreateRequestScreen = () => {
     isError: isDepartmentsError,
     error: departmentsError,
   } = useQuery<DepartmentApiData[], AxiosError>({
-    queryKey: ['departments', token],
+    queryKey: ["departments", token],
     queryFn: fetchDepartmentsQueryFn,
     enabled: !!token,
     staleTime: Infinity,
     onError: (err) => {
-      Alert.alert('Erro', `Não foi possível carregar departamentos: ${err.message || 'Erro desconhecido'}`);
+      Alert.alert(
+        "Erro",
+        `Não foi possível carregar departamentos: ${
+          err.message || "Erro desconhecido"
+        }`
+      );
     },
   });
 
   useEffect(() => {
     if (categories) {
-      const mappedCategories = categories.map(cat => ({
+      const mappedCategories = categories.map((cat) => ({
         label: cat.name,
         value: cat.id.toString(),
       }));
@@ -133,7 +167,7 @@ const CreateRequestScreen = () => {
 
   useEffect(() => {
     if (departments) {
-      const mappedDepartments = departments.map(dep => ({
+      const mappedDepartments = departments.map((dep) => ({
         label: dep.name,
         value: dep.id.toString(),
       }));
@@ -146,6 +180,7 @@ const CreateRequestScreen = () => {
       if (!token) {
         throw new Error("Token de autenticação não disponível.");
       }
+      console.log("Enviando dados:", JSON.stringify(formData, null, 2));
       const response = await authenticatedRequest("POST", "/post", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -194,27 +229,32 @@ const CreateRequestScreen = () => {
 
   const fetchAddressByCep = useCallback(async (currentCep: string) => {
     if (currentCep.length !== 8) {
-      setAddress('');
-      setNeighborhood('');
+      setAddress("");
+      setNeighborhood("");
       return;
     }
     setIsCepLoading(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${currentCep}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${currentCep}/json/`
+      );
       const data: ViaCepResponse = await response.json();
 
       if (data.erro) {
         Alert.alert("Erro no CEP", "CEP não encontrado ou inválido.");
-        setAddress('');
-        setNeighborhood('');
+        setAddress("");
+        setNeighborhood("");
       } else {
         setAddress(data.logradouro);
         setNeighborhood(data.bairro);
       }
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível buscar o CEP. Verifique sua conexão.");
-      setAddress('');
-      setNeighborhood('');
+      Alert.alert(
+        "Erro",
+        "Não foi possível buscar o CEP. Verifique sua conexão."
+      );
+      setAddress("");
+      setNeighborhood("");
     } finally {
       setIsCepLoading(false);
     }
@@ -276,7 +316,8 @@ const CreateRequestScreen = () => {
     createPostMutation,
   ]);
 
-  const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
+  const mapProvider =
+    Platform.OS === "android" ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
   if (isCategoriesLoading || isDepartmentsLoading) {
     return (
@@ -293,7 +334,11 @@ const CreateRequestScreen = () => {
         <Text style={styles.errorText}>
           Não foi possível carregar as opções de categoria ou departamento.
         </Text>
-        <TouchableOpacity onPress={() => {router.reload() }}>
+        <TouchableOpacity
+          onPress={() => {
+            router.reload();
+          }}
+        >
           <Text style={styles.retryButton}>Tentar Novamente</Text>
         </TouchableOpacity>
       </View>
@@ -423,12 +468,13 @@ const CreateRequestScreen = () => {
           initialRegion={{
             latitude: -5.0881,
             longitude: -42.8361,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
+            latitudeDelta: 0.007,
+            longitudeDelta: 0.007,
           }}
           onPress={handleMapPress}
           provider={mapProvider}
-          
+          showsUserLocation
+          showsMyLocationButton
         >
           {latitude !== null && longitude !== null && (
             <Marker coordinate={{ latitude, longitude }} />
@@ -461,35 +507,35 @@ const styles = StyleSheet.create({
   },
   fullscreenLoadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFF",
   },
   fullscreenErrorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
   },
   loadingText: {
     marginTop: 10,
-    fontFamily: 'Nunito-SemiBold',
+    fontFamily: "Nunito-SemiBold",
     fontSize: 16,
-    color: '#291F75',
+    color: "#291F75",
   },
   errorText: {
-    fontFamily: 'Nunito-SemiBold',
+    fontFamily: "Nunito-SemiBold",
     fontSize: 16,
-    color: '#D25A5A',
-    textAlign: 'center',
+    color: "#D25A5A",
+    textAlign: "center",
     marginBottom: 10,
   },
   retryButton: {
-    fontFamily: 'Nunito-Bold',
+    fontFamily: "Nunito-Bold",
     fontSize: 14,
-    color: '#291F75',
-    textDecorationLine: 'underline',
+    color: "#291F75",
+    textDecorationLine: "underline",
   },
   backButton: {
     flexDirection: "row",
@@ -594,9 +640,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   cepLoadingIndicator: {
-    position: 'absolute',
+    position: "absolute",
     right: 30,
-    top: '48%',
+    top: "48%",
     transform: [{ translateY: -10 }],
   },
 });

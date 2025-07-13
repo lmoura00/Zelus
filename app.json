@@ -17,7 +17,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lsm-00.Zelus",
       "config": {
-        "googleMapsApiKey": "process.env.GOOGLE_MAPS_IOS_API_KEY"
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_IOS_API_KEY",
+        
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Permita que o aplicativo acesse sua localização para mostrar sua posição atual no mapa e facilitar a criação de solicitações baseadas na sua localização."
       }
     },
     "android": {
@@ -47,6 +51,12 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que Zelus use a sua localização."
         }
       ]
     ],

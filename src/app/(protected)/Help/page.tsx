@@ -66,7 +66,7 @@ export default function HelpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff', paddingTop: Constants.statusBarHeight },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff', paddingTop: Constants.statusBarHeight, paddingBottom: 16 },
   backButton: {
     flexDirection: 'row',
     backgroundColor: '#F8F7FF',
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#5D559C',
   },
-  footer: { marginTop: 'auto', alignItems: 'center', paddingVertical: 16 },
+  footer: { marginTop: 'auto', alignItems: 'center', paddingVertical: 16, paddingBottom: 50 },
   footerText: {
     textAlign: 'center',
     fontSize: 14,

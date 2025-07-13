@@ -20,7 +20,7 @@ export default function TelaSeguranca() {
       <View style={styles.optionContainer}>
         <TouchableOpacity
           style={styles.option}
-          onPress={() => router.push("./ModificarSenha.tsx")}
+          onPress={() => router.push("/(protected)/ModificarSenha/page")}
         >
           <View style={styles.row}>
             <Ionicons name="key-outline" size={20} color="#291f75" />
@@ -32,7 +32,7 @@ export default function TelaSeguranca() {
         <TouchableOpacity
           style={styles.option}
           onPress={() =>
-            router.push("./ModificarEmail.tsx")
+            router.push("/(protected)/ModificarEmail/page")
           } /* Modificar para o caminho da página de alterar o E-mail, assim como no de SeNha*/
         >
           <View style={styles.row}>

@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
-export default function ModificarPerfil() {
+export default function ModificarEmailPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senhaAtual, setSenhaAtual] = useState("");

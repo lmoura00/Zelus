@@ -1,10 +1,16 @@
 // app/(protected)/_layout.tsx
-import React, { useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { AuthContext } from '@/context/user-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useContext, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
+import { Tabs, useRouter } from "expo-router";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { AuthContext } from "@/context/user-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProtectedLayout() {
   const router = useRouter();
@@ -13,7 +19,7 @@ export default function ProtectedLayout() {
 
   useEffect(() => {
     if (!user && !isLoading) {
-      router.replace('/Login/page');
+      router.replace("/Login/page");
     }
   }, [user, isLoading, router]);
 
@@ -30,27 +36,31 @@ export default function ProtectedLayout() {
         tabBarShowLabel: false,
         contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
       }}
-      sceneContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + insets.bottom }} 
+      sceneContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + insets.bottom }}
       tabBar={({ state, descriptors, navigation }) => (
-        <View 
+        <View
           style={[
-            styles.tabBarContainer, 
-            { 
-              bottom: 0, 
-              height: TAB_BAR_HEIGHT + insets.bottom, 
-              paddingBottom: insets.bottom 
-            }
+            styles.tabBarContainer,
+            {
+              bottom: 0,
+              height: TAB_BAR_HEIGHT + insets.bottom,
+              paddingBottom: insets.bottom,
+            },
           ]}
         >
           {state.routes.map((route, index) => {
             const intendedTabs = {
-              'Home/page': { icon: 'home', label: 'Início' },
-              'Solicitacoes/page': { icon: 'clipboard-list-outline', label: 'Solicitações' },
-              'Conta/page': { icon: 'account-outline', label: 'Conta' },
+              "Home/page": { icon: "home", label: "Início" },
+              "Solicitacoes/page": {
+                icon: "clipboard-list-outline",
+                label: "Solicitações",
+              },
+              "Conta/page": { icon: "account-outline", label: "Conta" },
             };
 
-            const tabInfo = intendedTabs[route.name as keyof typeof intendedTabs];
-            
+            const tabInfo =
+              intendedTabs[route.name as keyof typeof intendedTabs];
+
             if (!tabInfo) {
               return null;
             }
@@ -59,8 +69,8 @@ export default function ProtectedLayout() {
             const iconName = tabInfo.icon;
             const tabLabel = tabInfo.label;
 
-            const iconColor = isFocused ? '#FFFFFF' : '#B0A8E8';
-            const textColor = isFocused ? '#FFFFFF' : '#B0A8E8';
+            const iconColor = isFocused ? "#FFFFFF" : "#B0A8E8";
+            const textColor = isFocused ? "#FFFFFF" : "#B0A8E8";
             const tabItemStyle = isFocused ? styles.tabActive : styles.tab;
 
             const onPress = () => {
@@ -78,37 +88,57 @@ export default function ProtectedLayout() {
                 style={tabItemStyle}
                 activeOpacity={0.7}
               >
-                <MaterialCommunityIcons name={iconName as any} size={28} color={iconColor} />
-                <Text style={[styles.tabLabel, { color: textColor }]}>{tabLabel}</Text>
+                <MaterialCommunityIcons
+                  name={iconName as any}
+                  size={28}
+                  color={iconColor}
+                />
+                <Text style={[styles.tabLabel, { color: textColor }]}>
+                  {tabLabel}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       )}
     >
-      <Tabs.Screen 
-        name="Home/page" 
+      <Tabs.Screen
+        name="Home/page"
         options={{
           contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
         }}
       />
-      <Tabs.Screen 
-        name="Solicitacoes/page" 
+      <Tabs.Screen
+        name="Solicitacoes/page"
         options={{
           contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
         }}
       />
-      <Tabs.Screen 
-        name="Conta/page" 
+      <Tabs.Screen
+        name="Conta/page"
         options={{
           contentStyle: { paddingBottom: TAB_BAR_HEIGHT + insets.bottom },
         }}
       />
-      <Tabs.Screen 
-        name="SolicitacaoItem/[id]" 
+      <Tabs.Screen
+        name="SolicitacaoItem/[id]"
         options={{
           href: null,
-          headerShown: false, 
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="ModificarEmail/page"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="ModificarSenha/page"
+        options={{
+          href: null,
+          headerShown: false,
         }}
       />
     </Tabs>
@@ -117,35 +147,35 @@ export default function ProtectedLayout() {
 
 const styles = StyleSheet.create({
   tabBarContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#291F75',
+    flexDirection: "row",
+    backgroundColor: "#291F75",
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     borderTopWidth: 2,
-    borderTopColor: '#3E2A9E',
+    borderTopColor: "#3E2A9E",
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 10,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   tabActive: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 10,
-    backgroundColor: 'rgba(62, 42, 158, 0.3)',
+    backgroundColor: "rgba(62, 42, 158, 0.3)",
     borderRadius: 15,
     marginHorizontal: 5,
     transform: [{ scale: 1.05 }],
@@ -153,7 +183,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     marginTop: 4,
     fontSize: 13,
-    fontFamily: 'System',
-    fontWeight: '600',
+    fontFamily: "System",
+    fontWeight: "600",
   },
 });
