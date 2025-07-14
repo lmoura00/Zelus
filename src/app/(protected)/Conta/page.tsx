@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import axios from "axios";
-import { api } from "@/api";
+import { api } from "@/api"; // Certifique-se de que este 'api' aponta para o endereço correto do seu backend
 
 const { width } = Dimensions.get("window");
 
@@ -57,27 +57,8 @@ const ContaPage = () => {
     );
   }, [logout, router]);
 
-  const pickImage = useCallback(async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedUri = result.assets[0].uri;
-        setProfileImageUri(selectedUri);
-        await uploadImage(selectedUri);
-      }
-    } catch (error) {
-      Alert.alert("Erro", "Falha ao selecionar imagem.");
-    }
-  }, [token, user?.id]);
-
   const uploadImage = useCallback(
-    async (uri: string) => {
+    async (uri: string, fileName: string, type: string) => {
       if (!user?.id || !token) {
         Alert.alert("Erro", "Dados do usuário ou token não disponíveis.");
         return;
@@ -85,15 +66,19 @@ const ContaPage = () => {
 
       setIsUploading(true);
       const formData = new FormData();
-      formData.append("avatar", {
+      formData.append("image", {
         uri,
-        name: `avatar-${user.id}.jpg`,
-        type: "image/jpeg",
+        name: fileName,
+        type,
       } as any);
+
+      const targetUrl = `${api}/user/${user.id}`;
+      console.log("Tentando PUT para URL:", targetUrl); // Log do URL exato
+      console.log("Dados do arquivo (nome, tipo):", { name: fileName, type });
 
       try {
         const response = await axios.put(
-          `${api}/user/${user.id}`,
+          targetUrl,
           formData,
           {
             headers: {
@@ -110,10 +95,10 @@ const ContaPage = () => {
           Alert.alert("Erro", "Resposta inesperada do servidor.");
         }
       } catch (error: any) {
-        console.error("Erro ao fazer upload da imagem:", error);
+        console.error("Erro completo ao fazer upload da imagem:", error);
         Alert.alert(
           "Erro ao atualizar",
-          error.response?.data?.message || "Não foi possível atualizar a foto."
+          `Falha ao atualizar foto. Verifique a rota da API (PUT /user/:id) no seu backend. Status: ${error.response?.status || 'desconhecido'}`
         );
       } finally {
         setIsUploading(false);
@@ -121,6 +106,29 @@ const ContaPage = () => {
     },
     [user?.id, token]
   );
+
+  const pickImage = useCallback(async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedUri = result.assets[0].uri;
+        const fileExtension = selectedUri.split(".").pop();
+        const fileName = `avatar-${user?.id || 'temp'}.${fileExtension}`;
+        const type = `image/${fileExtension}`;
+
+        setProfileImageUri(selectedUri);
+        await uploadImage(selectedUri, fileName, type);
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Falha ao selecionar imagem.");
+    }
+  }, [user?.id, uploadImage]);
 
   const navigateToNotifications = useCallback(() => {
     router.push("/Notification/page");

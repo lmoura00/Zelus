@@ -22,7 +22,7 @@ interface CategoryData {
   id: number;
   name: string;
   createdAt: string;
-  id?: number;
+  updatedAt: string;
 }
 
 interface DepartmentData {
@@ -80,7 +80,7 @@ export default function SolicitacaoItemDetails() {
   const [newCommentText, setNewCommentText] = useState('');
 
   const postId = typeof id === 'string' ? parseInt(id, 10) : undefined;
-  console.log('Post ID:', postId);
+
   const fetchPostDetailsQueryFn = useCallback(async () => {
     if (!token) {
       throw new Error("Token de autenticação não disponível.");
@@ -203,6 +203,10 @@ export default function SolicitacaoItemDetails() {
     createCommentMutation.mutate(newCommentText);
   }, [newCommentText, createCommentMutation]);
 
+  const handleGoToUserDetails = useCallback((userId: number) => {
+    router.push(`/UserDetailsScreen/${userId}`);
+  }, [router]);
+
   const images = postDetails?.publicUrl ? [postDetails.publicUrl] : [];
 
   const goToPreviousImage = () => {
@@ -217,7 +221,7 @@ export default function SolicitacaoItemDetails() {
     switch (status) {
       case 'PENDENTE': return { text: 'Pendente', icon: 'clock-time-four-outline', color: '#FFB800' };
       case 'EM ANDAMENTO': return { text: 'Em Andamento', icon: 'refresh', color: '#3B73C4' };
-      case 'CONCLUIDO': return { text: 'Concluído', icon: 'check-circle-outline', color: '#5cb85c' };
+      case 'RESOLVIDO': return { text: 'Resolvido', icon: 'check-circle-outline', color: '#5cb85c' };
       case 'RECUSADO': return { text: 'Recusado', icon: 'close-circle-outline', color: '#D25A5A' };
       default: return { text: 'Desconhecido', icon: 'help-circle-outline', color: '#999' };
     }
@@ -256,15 +260,18 @@ export default function SolicitacaoItemDetails() {
   const isOwner = user && postDetails.user && user.id === postDetails.user.id;
   const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-  const acceptedStepActive = postDetails.status !== 'PENDENTE';
-  const acceptedStepCircleColor = acceptedStepActive ? statusInfo.color : '#ddd';
-  const acceptedStepTextColor = acceptedStepActive ? statusInfo.color : '#999';
+  const isAccepted = ['EM ANDAMENTO', 'RESOLVIDO', 'RECUSADO'].includes(postDetails.status);
+  const isInProgress = postDetails.status === 'EM ANDAMENTO';
+  const isResolved = postDetails.status === 'RESOLVIDO';
 
-  const inProgressStepColor = (postDetails.status === 'EM ANDAMENTO' || postDetails.status === 'CONCLUIDO') ? statusInfo.color : '#ddd';
-  const completedStepColor = postDetails.status === 'CONCLUIDO' ? statusInfo.color : '#ddd';
+  const acceptedStepCircleColor = isAccepted ? statusInfo.color : '#ddd';
+  const acceptedStepTextColor = isAccepted ? statusInfo.color : '#999';
 
-  const inProgressTextColor = (postDetails.status === 'EM ANDAMENTO' || postDetails.status === 'CONCLUIDO') ? statusInfo.color : '#999';
-  const completedTextColor = postDetails.status === 'CONCLUIDO' ? statusInfo.color : '#999';
+  const inProgressStepCircleColor = isInProgress || isResolved ? statusInfo.color : '#ddd';
+  const inProgressTextColor = isInProgress || isResolved ? statusInfo.color : '#999';
+
+  const resolvedStepCircleColor = isResolved ? statusInfo.color : '#ddd';
+  const resolvedTextColor = isResolved ? statusInfo.color : '#999';
 
   return (
     <View style={styles.container}>
@@ -292,6 +299,7 @@ export default function SolicitacaoItemDetails() {
           ) : (
             <View style={styles.noImagePlaceholder}>
               <MaterialCommunityIcons name="image-off-outline" size={60} color="#999" />
+              <Text style={styles.mapPlaceholderText}>Imagem indisponível</Text>
             </View>
           )}
         </View>
@@ -299,16 +307,16 @@ export default function SolicitacaoItemDetails() {
         <Text style={styles.title}>{postDetails.title}</Text>
 
         {isOwner && (
-            <View style={styles.ownerActions}>
-                <TouchableOpacity style={styles.editButton} onPress={handleEditPost}>
-                    <Feather name="edit" size={16} color="#291F75" />
-                    <Text style={styles.editButtonText}>Editar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
-                    <Feather name="trash-2" size={16} color="#D25A5A" />
-                    <Text style={styles.deleteButtonText}>Excluir</Text>
-                </TouchableOpacity>
-            </View>
+          <View style={styles.ownerActions}>
+            <TouchableOpacity style={styles.editButton} onPress={handleEditPost}>
+              <Feather name="edit" size={16} color="#291F75" />
+              <Text style={styles.editButtonText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
+              <Feather name="trash-2" size={16} color="#D25A5A" />
+              <Text style={styles.deleteButtonText}>Excluir</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         <View style={styles.infoCard}>
@@ -324,7 +332,19 @@ export default function SolicitacaoItemDetails() {
             <Feather name="user" size={20} color="#291F75" style={styles.cardIcon} />
             <Text style={styles.cardTitle}>Solicitante</Text>
           </View>
-          <Text style={styles.cardText}>{postDetails.user.name}</Text>
+          <TouchableOpacity onPress={() => handleGoToUserDetails(postDetails.user.id)}>
+            <Text style={[styles.cardText, styles.linkText]}>Nome: {postDetails.user.name}</Text>
+          </TouchableOpacity>
+          <Text style={styles.cardText}>Email: {postDetails.user.email}</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="tag" size={20} color="#291F75" style={styles.cardIcon} />
+            <Text style={styles.cardTitle}>Categoria e Departamento</Text>
+          </View>
+          <Text style={styles.cardText}>Categoria: {postDetails.category.name}</Text>
+          <Text style={styles.cardText}>Departamento: {postDetails.department.name}</Text>
         </View>
 
         <View style={styles.infoCard}>
@@ -332,8 +352,8 @@ export default function SolicitacaoItemDetails() {
             <Feather name="map-pin" size={20} color="#291F75" style={styles.cardIcon} />
             <Text style={styles.cardTitle}>Local</Text>
           </View>
-          <Text style={styles.cardText}>{postDetails.address}, {postDetails.neighborhood}</Text>
-          
+          <Text style={styles.cardText}>Endereço: {postDetails.address}, {postDetails.number ? `${postDetails.number}, ` : ''}{postDetails.neighborhood}, CEP: {postDetails.cep}</Text>
+
           {(mapLatitude !== null && mapLongitude !== null) ? (
             <View style={styles.mapContainer}>
               <MapView
@@ -369,8 +389,8 @@ export default function SolicitacaoItemDetails() {
           <View style={styles.statusHeader}>
             <MaterialCommunityIcons name="information-outline" size={20} color="#291F75" style={styles.statusIcon} />
             <Text style={styles.cardTitle}>Status</Text>
-            <View style={styles.currentStatusBadge}>
-                <Text style={styles.currentStatusText}>{statusInfo.text}</Text>
+            <View style={[styles.currentStatusBadge, { backgroundColor: statusInfo.color + '20' }]}>
+              <Text style={[styles.currentStatusText, { color: statusInfo.color }]}>{statusInfo.text}</Text>
             </View>
           </View>
           <View style={styles.statusSteps}>
@@ -382,37 +402,25 @@ export default function SolicitacaoItemDetails() {
             </View>
             <View style={styles.stepLine}></View>
             <View style={styles.step}>
-              <View style={[
-                styles.stepCircle,
-                { backgroundColor: inProgressStepColor }
-              ]}>
+              <View style={[styles.stepCircle, { backgroundColor: inProgressStepCircleColor }]}>
                 <MaterialCommunityIcons
                   name="progress-check"
                   size={16}
-                  color={postDetails.status === 'EM_ANDAMENTO' || postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"}
+                  color="#FFF"
                 />
               </View>
-              <Text style={[
-                styles.stepText,
-                { color: inProgressTextColor }
-              ]}>Em andamento</Text>
+              <Text style={[styles.stepText, { color: inProgressTextColor }]}>Em andamento</Text>
             </View>
             <View style={styles.stepLine}></View>
             <View style={styles.step}>
-              <View style={[
-                styles.stepCircle,
-                { backgroundColor: completedStepColor }
-              ]}>
+              <View style={[styles.stepCircle, { backgroundColor: resolvedStepCircleColor }]}>
                 <Feather
                   name="check"
                   size={16}
-                  color={postDetails.status === 'CONCLUIDO' ? "#FFF" : "#999"}
+                  color="#FFF"
                 />
               </View>
-              <Text style={[
-                styles.stepText,
-                { color: completedTextColor }
-              ]}>Concluído</Text>
+              <Text style={[styles.stepText, { color: resolvedTextColor }]}>Resolvido</Text>
             </View>
           </View>
           <View style={styles.statusInfo}>
@@ -421,7 +429,7 @@ export default function SolicitacaoItemDetails() {
             </View>
             <Text style={styles.statusInfoText}>Status atual: {statusInfo.text}</Text>
             {postDetails.updatedAt && (
-              <Text style={styles.statusDate}>{new Date(postDetails.updatedAt).toLocaleDateString()} às {new Date(postDetails.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+              <Text style={styles.statusDate}>{new Date(postDetails.updatedAt).toLocaleDateString()} às {new Date(postDetails.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             )}
           </View>
         </View>
@@ -440,7 +448,7 @@ export default function SolicitacaoItemDetails() {
                 <View style={styles.commentHeader}>
                   <Text style={styles.commentAuthor}>{comment.user.name}</Text>
                   <Text style={styles.commentDate}>
-                    {new Date(comment.createdAt).toLocaleDateString()} às {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {new Date(comment.createdAt).toLocaleDateString()} às {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
                 <Text style={styles.commentText}>{comment.text}</Text>
@@ -460,8 +468,8 @@ export default function SolicitacaoItemDetails() {
               onChangeText={setNewCommentText}
               editable={!createCommentMutation.isPending}
             />
-            <TouchableOpacity 
-              style={styles.sendCommentButton} 
+            <TouchableOpacity
+              style={styles.sendCommentButton}
               onPress={handlePostComment}
               disabled={createCommentMutation.isPending || !newCommentText.trim()}
             >
@@ -483,7 +491,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F7F8F9',
-    paddingBottom:120,
+    paddingBottom: 120,
   },
   backButton: {
     flexDirection: 'row',
@@ -513,7 +521,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 40,
     position: 'relative',
-
   },
   mainImage: {
     width: '100%',
@@ -526,6 +533,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#eee',
+    width: '100%',
+    height: '100%',
   },
   arrowButtonLeft: {
     position: 'absolute',
@@ -644,6 +653,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 5,
   },
+  linkText: {
+    color: '#3B73C4',
+    textDecorationLine: 'underline',
+  },
   emoji: {
     fontSize: 16,
   },
@@ -706,7 +719,6 @@ const styles = StyleSheet.create({
     color: '#291F75',
   },
   currentStatusBadge: {
-    backgroundColor: '#EAEAEA',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 15,
@@ -715,7 +727,6 @@ const styles = StyleSheet.create({
   currentStatusText: {
     fontFamily: 'Nunito-Bold',
     fontSize: 12,
-    color: '#291F75',
   },
   statusSteps: {
     flexDirection: 'row',
@@ -735,19 +746,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepCircleInactive: {
-    backgroundColor: '#ddd',
-    borderColor: '#bbb',
-    borderWidth: 1,
-  },
   stepText: {
     marginTop: 6,
     fontSize: 13,
     fontFamily: 'Nunito-Regular',
     textAlign: 'center',
-  },
-  stepTextInactive: {
-    color: '#999',
   },
   stepLine: {
     flex: 1,
@@ -768,7 +771,6 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: '#5cb85c',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -777,7 +779,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#5cb85c',
   },
   statusInfoText: {
     flex: 1,

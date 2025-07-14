@@ -46,7 +46,7 @@ const HomePage = () => {
   const [statusFilterItems, setStatusFilterItems] = useState([
     { label: 'Todos (Andamento/Concluídas)', value: 'TODOS' },
     { label: 'Em Andamento', value: 'EM ANDAMENTO' },
-    { label: 'Concluídas', value: 'CONCLUIDO' },
+    { label: 'Resolvido', value: 'RESOLVIDO' },
   ]);
 
   const fetchPostsQueryFn = useCallback(async () => {
@@ -135,7 +135,7 @@ const HomePage = () => {
       item.category.name.toLowerCase().includes(search.toLowerCase()) ||
       item.user.name.toLowerCase().includes(search.toLowerCase());
 
-    const isAllowedBaseStatus = item.status === 'EM ANDAMENTO' || item.status === 'CONCLUIDO';
+    const isAllowedBaseStatus = item.status === 'EM ANDAMENTO' || item.status === 'RESOLVIDO';
     
     let matchesStatusFilter = true;
     if (statusFilter !== 'TODOS') {

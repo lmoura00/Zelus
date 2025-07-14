@@ -141,6 +141,13 @@ export default function ProtectedLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="UserDetailsPage/[id]"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

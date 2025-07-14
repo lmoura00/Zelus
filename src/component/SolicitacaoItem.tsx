@@ -70,7 +70,7 @@ export default function SolicitacaoItem({
     switch (status) {
       case 'PENDENTE': return { text: 'Pendente', color: '#FFB800', backgroundColor: '#FFF6E3' };
       case 'EM ANDAMENTO': return { text: 'Em Andamento', color: '#3B73C4', backgroundColor: '#E3EDF9' };
-      case 'CONCLUIDO': return { text: 'Concluído', color: '#5cb85c', backgroundColor: '#E6FAEC' };
+      case 'RESOLVIDO': return { text: 'Resolvido', color: '#5cb85c', backgroundColor: '#E6FAEC' };
       case 'RECUSADO': return { text: 'Recusado', color: '#D25A5A', backgroundColor: '#FBE6E6' };
       default: return { text: 'Desconhecido', color: '#999', backgroundColor: '#F0F0F0' };
     }
