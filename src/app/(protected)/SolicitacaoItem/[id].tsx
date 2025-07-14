@@ -511,13 +511,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 280,
     overflow: 'hidden',
-    marginBottom: 0,
+    marginBottom: 40,
     position: 'relative',
+
   },
   mainImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+    marginBottom: 0,
   },
   noImagePlaceholder: {
     flex: 1,
