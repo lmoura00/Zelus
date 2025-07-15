@@ -204,7 +204,7 @@ export default function SolicitacaoItemDetails() {
   }, [newCommentText, createCommentMutation]);
 
   const handleGoToUserDetails = useCallback((userId: number) => {
-    router.push(`/UserDetailsScreen/${userId}`);
+    router.push(`/UserDetailsPage/${userId}`);
   }, [router]);
 
   const images = postDetails?.publicUrl ? [postDetails.publicUrl] : [];

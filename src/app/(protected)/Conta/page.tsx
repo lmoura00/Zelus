@@ -73,9 +73,9 @@ const ContaPage = () => {
       } as any);
 
       const targetUrl = `${api}/user/${user.id}`;
-      console.log("Tentando PUT para URL:", targetUrl); // Log do URL exato
+      console.log("Tentando PUT para URL:", targetUrl); 
       console.log("Dados do arquivo (nome, tipo):", { name: fileName, type });
-
+      console.log(token)
       try {
         const response = await axios.put(
           targetUrl,
@@ -83,7 +83,6 @@ const ContaPage = () => {
           {
             headers: {
               "Content-Type": "multipart/form-data",
-              Authorization: `Bearer ${token}`,
             },
           }
         );
