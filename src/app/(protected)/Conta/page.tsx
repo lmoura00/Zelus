@@ -15,13 +15,12 @@ import { AuthContext } from "@/context/user-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
-import axios from "axios";
-import { api } from "@/api"; // Certifique-se de que este 'api' aponta para o endereço correto do seu backend
+import { api } from "@/api";
 
 const { width } = Dimensions.get("window");
 
 const ContaPage = () => {
-  const { user, isLoading, logout, token } = useContext(AuthContext);
+  const { user, isLoading, logout, authenticatedRequest } = useContext(AuthContext);
   const router = useRouter();
 
   const [profileImageUri, setProfileImageUri] = useState<string | null>(
@@ -30,10 +29,10 @@ const ContaPage = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    if (user?.avatarUrl && !profileImageUri) {
+    if (user?.avatarUrl) {
       setProfileImageUri(user.avatarUrl);
     }
-  }, [user?.avatarUrl, profileImageUri]);
+  }, [user?.avatarUrl]);
 
   const handleLogout = useCallback(() => {
     Alert.alert(
@@ -59,8 +58,8 @@ const ContaPage = () => {
 
   const uploadImage = useCallback(
     async (uri: string, fileName: string, type: string) => {
-      if (!user?.id || !token) {
-        Alert.alert("Erro", "Dados do usuário ou token não disponíveis.");
+      if (!user) {
+        Alert.alert("Erro", "Dados do usuário não disponíveis.");
         return;
       }
 
@@ -72,38 +71,30 @@ const ContaPage = () => {
         type,
       } as any);
 
-      const targetUrl = `${api}/user/${user.id}`;
-      console.log("Tentando PATCH para URL:", targetUrl); 
-      console.log("Dados do arquivo (nome, tipo):", { name: fileName, type });
-      console.log(token)
       try {
-        const response = await axios.patch(
-          targetUrl,
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
+        const response = await authenticatedRequest("PATCH", "/user", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
 
         if (response.data && response.data.avatarUrl) {
           setProfileImageUri(response.data.avatarUrl);
           Alert.alert("Sucesso", "Foto de perfil atualizada!");
         } else {
-          Alert.alert("Erro", "Resposta inesperada do servidor.");
+          Alert.alert("Erro", "Resposta inesperada do servidor ao atualizar a foto.");
         }
       } catch (error: any) {
-        console.error("Erro completo ao fazer upload da imagem:", error);
+        console.error("Erro completo ao fazer upload da imagem:", error.response?.data || error.message);
         Alert.alert(
           "Erro ao atualizar",
-          `Falha ao atualizar foto. Verifique a rota da API (PUT /user/:id) no seu backend. Status: ${error.response?.status || 'desconhecido'}`
+          `Falha ao atualizar foto: ${error.response?.data?.message || error.message}`
         );
       } finally {
         setIsUploading(false);
       }
     },
-    [user?.id, token]
+    [user, authenticatedRequest]
   );
 
   const pickImage = useCallback(async () => {
@@ -116,18 +107,18 @@ const ContaPage = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedUri = result.assets[0].uri;
-        const fileExtension = selectedUri.split(".").pop();
-        const fileName = `avatar-${user?.id || 'temp'}.${fileExtension}`;
+        const uri = result.assets[0].uri;
+        const fileExtension = uri.split(".").pop();
+        const fileName = `profile_photo.${fileExtension}`;
         const type = `image/${fileExtension}`;
 
-        setProfileImageUri(selectedUri);
-        await uploadImage(selectedUri, fileName, type);
+        setProfileImageUri(uri);
+        await uploadImage(uri, fileName, type);
       }
     } catch (error) {
       Alert.alert("Erro", "Falha ao selecionar imagem.");
     }
-  }, [user?.id, uploadImage]);
+  }, [uploadImage]);
 
   const navigateToNotifications = useCallback(() => {
     router.push("/Notification/page");
@@ -156,7 +147,7 @@ const ContaPage = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity style={styles.headerIcon}>
+        <TouchableOpacity style={styles.headerIcon} onPress={navigateToNotifications}>
           <Ionicons name="notifications-outline" size={24} color="#291f75" />
         </TouchableOpacity>
       </View>

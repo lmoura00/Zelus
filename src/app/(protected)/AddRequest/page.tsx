@@ -465,11 +465,12 @@ const CreateRequestScreen = () => {
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
+          followsUserLocation
           initialRegion={{
             latitude: -5.0881,
             longitude: -42.8361,
-            latitudeDelta: 0.007,
-            longitudeDelta: 0.007,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
           }}
           onPress={handleMapPress}
           provider={mapProvider}
@@ -621,6 +622,7 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: "100%",
+    flex: 1,
   },
   submitButton: {
     backgroundColor: "#291F75",

@@ -74,7 +74,7 @@ interface UserDataResponse extends UserDataWithoutPosts {
   posts: Omit<PostData, "category" | "user" | "department">[];
 }
 
-const { width, height } = Dimensions.get("window");
+
 
 const SolicitacoesPage = () => {
   const router = useRouter();
@@ -190,7 +190,6 @@ const SolicitacoesPage = () => {
         (dep) => dep.id === post.departmentId
       );
       const postUser: UserDataWithoutPosts = {
-        // Construindo o objeto user para o post
         id: response.data.id,
         name: response.data.name,
         email: response.data.email,
@@ -215,7 +214,7 @@ const SolicitacoesPage = () => {
           updatedAt: "",
           admins: [],
         },
-        user: postUser, // Reutiliza os dados do usuário principal da resposta /user/:id
+        user: postUser, 
       };
     });
 
@@ -238,9 +237,9 @@ const SolicitacoesPage = () => {
     refetch: refetchUserPosts,
     isError: hasUserPostsError,
   } = useQuery<PostData[], AxiosError>({
-    queryKey: ["userPosts", user?.id, token, categories, departments], // Adicionado categories/departments como dependência
+    queryKey: ["userPosts", user?.id, token, categories, departments], 
     queryFn: fetchUserPostsQueryFn,
-    enabled: !!token && !!user?.id && !!categories && !!departments, // Só executa se categories e departments estiverem carregados
+    enabled: !!token && !!user?.id && !!categories && !!departments,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -289,6 +288,14 @@ const SolicitacoesPage = () => {
   }
 
   if (isCategoriesError || isDepartmentsError) {
+    function refetchCategories() {
+      throw new Error("Function not implemented.");
+    }
+
+    function refetchDepartments() {
+      throw new Error("Function not implemented.");
+    }
+
     return (
       <View style={styles.errorListContainer}>
         <Text style={styles.errorText}>
@@ -296,7 +303,8 @@ const SolicitacoesPage = () => {
         </Text>
         <TouchableOpacity
           onPress={() => {
-            /* Poderia refetchCategories e refetchDepartments aqui */
+            refetchCategories();
+            refetchDepartments();
           }}
         >
           <Text style={styles.retryButton}>Tentar Novamente</Text>

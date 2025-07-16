@@ -67,6 +67,7 @@ interface CommentData {
   createdAt: string;
   updatedAt: string;
   user: UserData;
+  totallikes?: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -112,8 +113,15 @@ export default function SolicitacaoItemDetails() {
 
   const fetchCommentsQueryFn = useCallback(async () => {
     if (!token || postId === undefined) return [];
-    const response = await authenticatedRequest<CommentData[]>('GET', `/post/${postId}/comments`);
-    return response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    try {
+      const response = await authenticatedRequest<{ comments: CommentData[] }>('GET', `/comments/${postId}`);
+      return response.data.comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err: any) {
+      if (err instanceof AxiosError && err.response && err.response.status === 404 && err.response.data?.message === "Nenhum comentário encontrado para este post.") {
+        return [];
+      }
+      throw err;
+    }
   }, [token, authenticatedRequest, postId]);
 
   const {
@@ -127,7 +135,8 @@ export default function SolicitacaoItemDetails() {
     queryFn: fetchCommentsQueryFn,
     enabled: !!token && postId !== undefined,
     onError: (err) => {
-      Alert.alert('Erro', `Não foi possível carregar os comentários: ${err.message || 'Erro desconhecido'}`);
+      const errorMessage = err.response?.data?.message || err.message;
+      Alert.alert('Erro', `Não foi possível carregar os comentários: ${errorMessage}`);
     },
   });
 
@@ -136,16 +145,31 @@ export default function SolicitacaoItemDetails() {
       if (!token || postId === undefined) {
         throw new Error("Token de autenticação ou ID do post não disponível.");
       }
-      const response = await authenticatedRequest('POST', `/post/${postId}/comments`, { text: commentText });
+      const response = await authenticatedRequest('POST', `/comments/${postId}`, { text: commentText });
       return response.data;
     },
     onSuccess: () => {
       setNewCommentText('');
       queryClient.invalidateQueries(['postComments', postId]);
-      Alert.alert('Sucesso', 'Comentário adicionado!');
     },
     onError: (err) => {
       Alert.alert('Erro', `Falha ao adicionar comentário: ${err.response?.data?.message || err.message}`);
+    },
+  });
+
+  const likeCommentMutation = useMutation<any, AxiosError, number>({
+    mutationFn: async (commentIdToLike: number) => {
+      if (!token) {
+        throw new Error("Token de autenticação não disponível.");
+      }
+      const response = await authenticatedRequest('PUT', `/comments/like/${commentIdToLike}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['postComments', postId]);
+    },
+    onError: (err) => {
+      Alert.alert('Erro', `Falha ao curtir comentário: ${err.response?.data?.message || err.message}`);
     },
   });
 
@@ -248,7 +272,7 @@ export default function SolicitacaoItemDetails() {
       </View>
     );
   }
-
+  
   const statusInfo = getStatusDisplay(postDetails.status);
 
   const parsedLatitude = postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null;
@@ -324,7 +348,7 @@ export default function SolicitacaoItemDetails() {
             <MaterialCommunityIcons name="text-box-outline" size={20} color="#291F75" style={styles.cardIcon} />
             <Text style={styles.cardTitle}>Descrição</Text>
           </View>
-          <Text style={styles.cardText}>{postDetails.description} <Text style={styles.emoji}>👍</Text></Text>
+          <Text style={styles.cardText}>{postDetails.description} </Text>
         </View>
 
         <View style={styles.infoCard}>
@@ -361,8 +385,8 @@ export default function SolicitacaoItemDetails() {
                 initialRegion={{
                   latitude: mapLatitude,
                   longitude: mapLongitude,
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
+                  latitudeDelta: 0.008,
+                  longitudeDelta: 0.008,
                 }}
                 provider={mapProvider}
                 scrollEnabled={false}
@@ -429,7 +453,7 @@ export default function SolicitacaoItemDetails() {
             </View>
             <Text style={styles.statusInfoText}>Status atual: {statusInfo.text}</Text>
             {postDetails.updatedAt && (
-              <Text style={styles.statusDate}>{new Date(postDetails.updatedAt).toLocaleDateString()} às {new Date(postDetails.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+              <Text style={styles.statusDate}>{new Date(postDetails.updatedAt).toLocaleDateString('pt-BR')} às {new Date(postDetails.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             )}
           </View>
         </View>
@@ -446,12 +470,29 @@ export default function SolicitacaoItemDetails() {
             comments.map((comment) => (
               <View key={comment.id} style={styles.commentItem}>
                 <View style={styles.commentHeader}>
+                  <Image
+                    source={{ uri: comment.user.avatarUrl || 'https://via.placeholder.com/150' }}
+                    style={styles.commentAvatar}
+                  />
                   <Text style={styles.commentAuthor}>{comment.user.name}</Text>
-                  <Text style={styles.commentDate}>
-                    {new Date(comment.createdAt).toLocaleDateString()} às {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
                 </View>
                 <Text style={styles.commentText}>{comment.text}</Text>
+                <View style={styles.commentActions}>
+                  <TouchableOpacity
+                    onPress={() => likeCommentMutation.mutate(comment.id)}
+                    style={styles.likeButton}
+                    disabled={likeCommentMutation.isPending} 
+                  >
+                    <Ionicons
+                      name="heart-outline"
+                      size={18}
+                      color="#D25A5A"
+                    />
+                    <Text style={styles.likeCount}>
+                      {parseInt(comment.totallikes || '0', 10)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           ) : (
@@ -492,6 +533,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F8F9',
     paddingBottom: 120,
+    paddingTop: Constants.statusBarHeight,
   },
   backButton: {
     flexDirection: 'row',
@@ -853,8 +895,11 @@ const styles = StyleSheet.create({
   },
   commentHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginBottom: 4,
+    backgroundColor: '#EFAE0C',
+    padding: 5,
+    borderRadius: 5,
   },
   commentAuthor: {
     fontFamily: 'Nunito-Bold',
@@ -870,6 +915,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Regular',
     fontSize: 14,
     color: '#555',
+  },
+  commentActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FBE6E6', 
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 15,
+  },
+  likeCount: {
+    marginLeft: 4,
+    fontFamily: 'Nunito-SemiBold',
+    fontSize: 13,
+    color: '#D25A5A',
   },
   noCommentsText: {
     fontFamily: 'Nunito-Regular',
@@ -908,5 +973,11 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  commentAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 10,
   },
 });
