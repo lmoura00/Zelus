@@ -40,7 +40,7 @@ export default function Index() {
 
       <Text style={styles.title}>Zelus</Text>
 
-      <Text style={styles.subtitle}>Exemplo de {"\n"}subtítulo</Text>
+       <Text style={styles.subtitle}>Junte-se {"\n"}à transformação</Text>
 
       <ScrollView
         horizontal

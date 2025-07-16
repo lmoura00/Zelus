@@ -17,25 +17,14 @@ import {
   ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
-import {
-  Feather,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { AuthContext } from "@/context/user-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import Constants from "expo-constants";
 import DropDownPicker from "react-native-dropdown-picker";
 import SolicitacaoItem from "@/component/SolicitacaoItem";
-import {
-  UserData,
-  CategoryData,
-  DepartmentData,
-  PostData,
-  CommentData,
-  BannerData,
-} from "@/types/app";
+import { PostData, BannerData } from "@/types/app";
 
 import backgroundBannerImage from "@/assets/Component 1.png";
 
@@ -93,7 +82,7 @@ const HomePage = () => {
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
-    onError: (err: any) => {
+    onError: (err) => {
       Alert.alert(
         "Erro ao carregar solicitações",
         err.message || "Erro desconhecido ao carregar."
@@ -114,7 +103,6 @@ const HomePage = () => {
     data: bannersData,
     isLoading: isBannersLoading,
     isError: isBannersError,
-    error: bannersError,
     refetch: refetchBanners,
   } = useQuery<BannerData[], AxiosError>({
     queryKey: ["banners", token],
@@ -132,7 +120,7 @@ const HomePage = () => {
   });
 
   const denouncePostMutation = useMutation<any, AxiosError, number>({
-    mutationFn: async (postIdToDenounce: number) => {
+    mutationFn: async (postIdToDenounce) => {
       if (!token) throw new Error("Token de autenticação não disponível.");
       const response = await authenticatedRequest(
         "PATCH",
@@ -173,7 +161,7 @@ const HomePage = () => {
     }
   }, [user, isAuthLoading, authError, router, token]);
 
-  const filteredRequests = (requestsData || []).filter((item: PostData) => {
+  const filteredRequests = (requestsData || []).filter((item) => {
     const matchesSearch =
       item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -191,7 +179,7 @@ const HomePage = () => {
     return matchesSearch && isAllowedBaseStatus && matchesStatusFilter;
   });
 
-  const handleDenounce = (item: PostData) => {
+  const handleDenounce = (item) => {
     setSelectedPost(item);
     setModalVisible(true);
   };
@@ -204,11 +192,11 @@ const HomePage = () => {
     }
   }, [selectedPost, denouncePostMutation]);
 
-  const handleViewPostDetails = (postId: number) => {
+  const handleViewPostDetails = (postId) => {
     router.push(`/SolicitacaoItem/${postId}`);
   };
 
-  const formatTimeAgo = (dateString: string) => {
+  const formatTimeAgo = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -238,128 +226,130 @@ const HomePage = () => {
     return null;
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.fixedHeaderArea}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Zelus</Text>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Feather name="bell" size={24} color="#291F75" />
-          </TouchableOpacity>
-        </View>
-
-        {user && (
-          <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
-        )}
-
-        <View style={styles.searchRow}>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar solicitações..."
-            placeholderTextColor="#918CBC"
-            style={styles.searchInput}
-          />
-          <TouchableOpacity style={styles.searchBtn}>
-            <Feather name="search" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={BANNER_WIDTH + CARD_MARGIN}
-          decelerationRate="fast"
-          onMomentumScrollEnd={(e) => {
-            if (bannersData && bannersData.length > 0) {
-              const idx = Math.round(
-                e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
-              );
-              setBannerIndex(idx);
-            }
-          }}
-          contentContainerStyle={styles.bannerScrollViewContent}
-        >
-          {isBannersLoading ? (
-            <ImageBackground
-              source={backgroundBannerImage}
-              style={styles.bannerCard}
-              imageStyle={styles.bannerImageBackgroundStyle}
-              resizeMode="cover"
-            >
-              <ActivityIndicator size="large" color="#291F75" />
-            </ImageBackground>
-          ) : isBannersError || !bannersData || bannersData.length === 0 ? (
-            <ImageBackground
-              source={backgroundBannerImage}
-              style={styles.bannerCard}
-              imageStyle={styles.bannerImageBackgroundStyle}
-              resizeMode="cover"
-            >
-              <Text style={styles.fallbackBannerText}>Zelus</Text>
-            </ImageBackground>
-          ) : (
-            bannersData.map((banner, i) => (
-              <ImageBackground
-                key={banner.id}
-                source={backgroundBannerImage}
-                style={styles.bannerCard}
-                imageStyle={styles.bannerImageBackgroundStyle}
-                resizeMode="cover"
-              >
-                <TouchableOpacity
-                  style={styles.bannerImageOverlay}
-                  onPress={() => Linking.openURL(banner.linkTo)}
-                  activeOpacity={0.8}
-                >
-                  <Image
-                    source={{ uri: banner.imageUrl }}
-                    style={styles.bannerImage}
-                  />
-                </TouchableOpacity>
-              </ImageBackground>
-            ))
-          )}
-        </ScrollView>
-
-        <View style={styles.bannerDotsRow}>
-          {(bannersData || []).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.bannerDot,
-                i === bannerIndex && styles.bannerDotActive,
-              ]}
-            />
-          ))}
-        </View>
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
-          <View style={styles.filterDropdownWrapper}>
-            <DropDownPicker
-              listMode="SCROLLVIEW"
-              open={openStatusFilter}
-              value={statusFilter}
-              items={statusFilterItems}
-              setOpen={setOpenStatusFilter}
-              setValue={setStatusFilter}
-              setItems={setStatusFilterItems}
-              placeholder="Filtrar por status"
-              style={styles.dropdown}
-              dropDownContainerStyle={styles.dropdownContainer}
-              textStyle={styles.dropdownText}
-              labelStyle={styles.dropdownLabel}
-              tickIconStyle={styles.dropdownTickIcon}
-              arrowIconStyle={styles.dropdownArrowIcon}
-              zIndex={3000}
-              zIndexInverse={1000}
-            />
-          </View>
-        </View>
+  const renderListHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Zelus</Text>
+        <TouchableOpacity style={styles.headerIcon}>
+          <Feather name="bell" size={24} color="#291F75" />
+        </TouchableOpacity>
       </View>
 
+      {user && (
+        <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
+      )}
+
+      <View style={styles.searchRow}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar solicitações..."
+          placeholderTextColor="#918CBC"
+          style={styles.searchInput}
+        />
+        <TouchableOpacity style={styles.searchBtn}>
+          <Feather name="search" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={BANNER_WIDTH + CARD_MARGIN}
+        decelerationRate="fast"
+        onMomentumScrollEnd={(e) => {
+          if (bannersData && bannersData.length > 0) {
+            const idx = Math.round(
+              e.nativeEvent.contentOffset.x / (BANNER_WIDTH + CARD_MARGIN)
+            );
+            setBannerIndex(idx);
+          }
+        }}
+        contentContainerStyle={styles.bannerScrollViewContent}
+      >
+        {isBannersLoading ? (
+          <ImageBackground
+            source={backgroundBannerImage}
+            style={styles.bannerCard}
+            imageStyle={styles.bannerImageBackgroundStyle}
+            resizeMode="cover"
+          >
+            <ActivityIndicator size="large" color="#291F75" />
+          </ImageBackground>
+        ) : isBannersError || !bannersData || bannersData.length === 0 ? (
+          <ImageBackground
+            source={backgroundBannerImage}
+            style={styles.bannerCard}
+            imageStyle={styles.bannerImageBackgroundStyle}
+            resizeMode="cover"
+          >
+            <Text style={styles.fallbackBannerText}>Zelus</Text>
+          </ImageBackground>
+        ) : (
+          bannersData.map((banner, i) => (
+            <ImageBackground
+              key={banner.id}
+              source={backgroundBannerImage}
+              style={styles.bannerCard}
+              imageStyle={styles.bannerImageBackgroundStyle}
+              resizeMode="cover"
+            >
+              <TouchableOpacity
+                style={styles.bannerImageOverlay}
+                onPress={() => Linking.openURL(banner.linkTo)}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: banner.imageUrl }}
+                  style={styles.bannerImage}
+                />
+              </TouchableOpacity>
+            </ImageBackground>
+          ))
+        )}
+      </ScrollView>
+
+      <View style={styles.bannerDotsRow}>
+        {(bannersData || []).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.bannerDot,
+              i === bannerIndex && styles.bannerDotActive,
+            ]}
+          />
+        ))}
+      </View>
+
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
+        <View style={styles.filterDropdownWrapper}>
+          <DropDownPicker
+            listMode="SCROLLVIEW"
+            open={openStatusFilter}
+            value={statusFilter}
+            items={statusFilterItems}
+            setOpen={setOpenStatusFilter}
+            setValue={setStatusFilter}
+            setItems={setStatusFilterItems}
+            placeholder="Filtrar por status"
+            style={styles.dropdown}
+            dropDownContainerStyle={styles.dropdownContainer}
+            textStyle={styles.dropdownText}
+            labelStyle={styles.dropdownLabel}
+            tickIconStyle={styles.dropdownTickIcon}
+            arrowIconStyle={styles.dropdownArrowIcon}
+            zIndex={3000}
+            zIndexInverse={1000}
+          />
+        </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
       {isPostsLoading && !isPostsFetching ? (
         <View style={styles.loadingRequestsContainer}>
           <ActivityIndicator size="large" color="#291F75" />
@@ -375,10 +365,10 @@ const HomePage = () => {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList<PostData>
+        <FlatList
           data={filteredRequests}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }: { item: PostData }) => (
+          renderItem={({ item }) => (
             <SolicitacaoItem
               item={item}
               onPress={handleViewPostDetails}
@@ -387,6 +377,7 @@ const HomePage = () => {
             />
           )}
           contentContainerStyle={styles.flatListContent}
+          ListHeaderComponent={renderListHeader}
           ListEmptyComponent={() => (
             <View style={styles.emptyListContainer}>
               <Text style={styles.emptyListText}>
@@ -452,7 +443,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F8F9",
     paddingTop: Constants.statusBarHeight,
   },
-  fixedHeaderArea: {
+  headerContainer: {
     backgroundColor: "#F7F8F9",
     paddingBottom: 0,
   },
@@ -610,7 +601,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     marginTop: -40,
-
     marginBottom: 20,
   },
   bannerDot: {
