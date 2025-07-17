@@ -40,7 +40,8 @@
     "react-native-swipe-list-view": "^3.2.9",
     "react-native-web": "~0.20.0",
     "expo-location": "~18.1.6",
-    "lottie-react-native": "7.2.2"
+    "lottie-react-native": "7.2.2",
+    "expo-notifications": "~0.31.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

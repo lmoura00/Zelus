@@ -159,7 +159,7 @@ export default function RegisterPage() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Cadastre-se</Text>
 
-        {/* Campo Nome */}
+
         <Text style={styles.label}>Nome</Text>
         <TextInput
           style={styles.input}

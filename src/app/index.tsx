@@ -151,6 +151,8 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH * 0.8,
     height: CARD_HEIGHT * 0.6,
     marginBottom: 14,
+  
+    opacity: 0.7,
   },
   cardText: {
     fontFamily: "Nunito-Bold",
