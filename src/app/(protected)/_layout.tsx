@@ -148,6 +148,13 @@ export default function ProtectedLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="EditProfile/page"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

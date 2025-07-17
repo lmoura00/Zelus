@@ -7,26 +7,42 @@ import {
   Image,
   Dimensions,
   ScrollView,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
 } from "react-native";
 import { useRouter } from "expo-router";
+import LottieView from 'lottie-react-native';
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.8;
 const CARD_HEIGHT = CARD_WIDTH * 0.8;
 
-const cards = Array.from({ length: 4 }).map((_, i) => ({
-  key: String(i),
-  text: "Receba atualizações",
-  img: require("@/assets/rafiki.png"),
-}));
+const cards = [
+  {
+    key: "0",
+    text: "Reporte problemas na sua cidade de forma rápida e fácil.",
+    animation: require("@/assets/report.json"),
+  },
+  {
+    key: "1",
+    text: "Acompanhe o status das suas solicitações em tempo real.",
+    animation: require("@/assets/tracking.json"),
+  },
+  {
+    key: "2",
+    text: "Conecte-se com a comunidade e colabore para melhorias.",
+    animation: require("@/assets/Connecting people.json"),
+  },
+  {
+    key: "3",
+    text: "Juntos, construímos uma cidade mais eficiente e zelosa.",
+    animation: require("@/assets/Handshake.json"),
+  },
+];
 
 export default function Index() {
   const router = useRouter();
   const [index, setIndex] = React.useState(0);
 
-  function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+  function onScrollEnd(e: any) {
     const page = Math.round(e.nativeEvent.contentOffset.x / width);
     setIndex(page);
   }
@@ -53,7 +69,12 @@ export default function Index() {
         {cards.map((card) => (
           <View key={card.key} style={styles.cardWrapper}>
             <View style={styles.card}>
-              <Image source={card.img} style={styles.illustration} />
+              <LottieView
+                source={card.animation}
+                autoPlay
+                loop
+                style={styles.animationIllustration}
+              />
 
               <Text style={styles.cardText}>{card.text}</Text>
             </View>
@@ -82,7 +103,6 @@ export default function Index() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -127,16 +147,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
-  illustration: {
+  animationIllustration: {
     width: CARD_WIDTH * 0.8,
     height: CARD_HEIGHT * 0.6,
     marginBottom: 14,
-    resizeMode: "contain",
   },
   cardText: {
     fontFamily: "Nunito-Bold",
     fontSize: 18,
     color: "#291F75",
+    textAlign: "center",
+    paddingHorizontal: 10,
   },
   dotsRow: {
     position: "absolute",
@@ -186,4 +207,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#FFFFFF",
   },
-});
+}
+);

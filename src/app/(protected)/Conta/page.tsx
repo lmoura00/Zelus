@@ -20,10 +20,10 @@ import { api } from "@/api";
 const { width } = Dimensions.get("window");
 
 const ContaPage = () => {
-  const { user, isLoading, logout, authenticatedRequest } = useContext(AuthContext);
+  const { user, isLoading, logout, authenticatedRequest, refetchUser } = useContext(AuthContext);
   const router = useRouter();
 
-  const [profileImageUri, setProfileImageUri] = useState<string | null>(
+  const [profileImageUri, setProfileImageUri] = useState(
     user?.avatarUrl || null
   );
   const [isUploading, setIsUploading] = useState(false);
@@ -57,7 +57,7 @@ const ContaPage = () => {
   }, [logout, router]);
 
   const uploadImage = useCallback(
-    async (uri: string, fileName: string, type: string) => {
+    async (uri, fileName, type) => {
       if (!user) {
         Alert.alert("Erro", "Dados do usuário não disponíveis.");
         return;
@@ -69,7 +69,7 @@ const ContaPage = () => {
         uri,
         name: fileName,
         type,
-      } as any);
+      });
 
       try {
         const response = await authenticatedRequest("PATCH", "/user", formData, {
@@ -81,10 +81,11 @@ const ContaPage = () => {
         if (response.data && response.data.avatarUrl) {
           setProfileImageUri(response.data.avatarUrl);
           Alert.alert("Sucesso", "Foto de perfil atualizada!");
+          refetchUser(); // Força a atualização do usuário no AuthContext
         } else {
           Alert.alert("Erro", "Resposta inesperada do servidor ao atualizar a foto.");
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Erro completo ao fazer upload da imagem:", error.response?.data || error.message);
         Alert.alert(
           "Erro ao atualizar",
@@ -94,7 +95,7 @@ const ContaPage = () => {
         setIsUploading(false);
       }
     },
-    [user, authenticatedRequest]
+    [user, authenticatedRequest, refetchUser]
   );
 
   const pickImage = useCallback(async () => {
@@ -130,6 +131,10 @@ const ContaPage = () => {
 
   const navigateToHelp = useCallback(() => {
     router.push("/Help/page");
+  }, [router]);
+
+  const navigateToEditProfile = useCallback(() => {
+    router.push("/EditProfile/page"); // Nova rota
   }, [router]);
 
   if (isLoading || isUploading) {
@@ -172,6 +177,13 @@ const ContaPage = () => {
       </View>
 
       <View style={styles.menu}>
+        <MenuItem
+          icon={
+            <Ionicons name="person-outline" size={20} color="#291f75" /> // Ícone para editar perfil
+          }
+          label="Editar Perfil"
+          onPress={navigateToEditProfile} // Navega para a nova página
+        />
         <MenuItem
           icon={
             <Ionicons name="notifications-outline" size={20} color="#291f75" />
