@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { AuthContext } from '@/context/user-context';
 import { useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
+import { api } from '@/api';
 
 type Notification = {
   id: string;
@@ -57,13 +58,12 @@ const PaginaDeNotificacoes = () => {
     }
 
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Expo Push Token:', token);
+    console.log('Expo Push Token:', JSON.stringify(token, null, 2));
 
     if (user && token) {
       try {
-        await authenticatedRequest('POST', '/api/push-token', {
+        await authenticatedRequest('POST', `${api}/push-token`, {
           token: token,
-          userId: user.id
         });
       } catch (error) {
         console.error('Erro ao enviar o token:', error);
