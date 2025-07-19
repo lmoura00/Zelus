@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {View,Text,StyleSheet,TouchableOpacity,ActivityIndicator,Animated,} from 'react-native';
-import {useRouter} from 'expo-router'
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Platform, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
+import { AuthContext } from '@/context/user-context';
+import { useQuery } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+
 type Notification = {
   id: string;
   title: string;
@@ -18,33 +23,69 @@ const NOTIFICACOES_INICIAIS: Notification[] = [
   { id: '4', title: 'Solicitação enviada', time: 'há 4d', isRead: true },
 ];
 
-export default function PaginaDeNotificacoes() {
+const PaginaDeNotificacoes = () => {
   const [activeTab, setActiveTab] = useState<'Tudo' | 'Não Lidas'>('Tudo');
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
   const navigation = useRouter();
-  const globalDataRef = useRef<Notification[]>(NOTIFICACOES_INICIAIS);
+  const { user, authenticatedRequest } = useContext(AuthContext);
 
   useEffect(() => {
-    setNotifications(globalDataRef.current);
-    setLoading(false);
+    setNotifications(NOTIFICACOES_INICIAIS);
   }, []);
 
+  const getPushTokenAndSend = useCallback(async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      Alert.alert('Permissão de notificação negada!');
+      return;
+    }
+
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    console.log('Expo Push Token:', token);
+
+    if (user && token) {
+      try {
+        await authenticatedRequest('POST', '/api/push-token', {
+          token: token,
+          userId: user.id
+        });
+      } catch (error) {
+        console.error('Erro ao enviar o token:', error);
+      }
+    }
+  }, [user, authenticatedRequest]);
+
+  useEffect(() => {
+    getPushTokenAndSend();
+  }, [getPushTokenAndSend]);
+  
   const marcarComoLida = (id: string) => {
-    globalDataRef.current = globalDataRef.current.map(n =>
-      n.id === id ? { ...n, isRead: true } : n
-    );
-    setNotifications(globalDataRef.current);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
   const handleDelete = (id: string) => {
-    globalDataRef.current = globalDataRef.current.filter(n => n.id !== id);
-    setNotifications(globalDataRef.current);
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const filteredNotificacoes =
     activeTab === 'Tudo'
-      ? notifications.filter(n => n.isRead)
+      ? notifications
       : notifications.filter(n => !n.isRead);
 
   return (
@@ -72,9 +113,7 @@ export default function PaginaDeNotificacoes() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#4639AA" />
-      ) : (
+      {filteredNotificacoes.length > 0 ? (
         <SwipeListView
           data={filteredNotificacoes}
           keyExtractor={(item) => item.id}
@@ -122,10 +161,14 @@ export default function PaginaDeNotificacoes() {
           friction={8}
           tension={40}
         />
+      ) : (
+        <View style={styles.emptyListContainer}>
+          <Text style={styles.emptyText}>Nenhuma notificação encontrada.</Text>
+        </View>
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -138,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    marginTop:30,
+    marginTop: 30,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8F7FF',
@@ -163,7 +206,6 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     marginBottom: 20,
-    
   },
   tab: {
     paddingVertical: 8,
@@ -171,23 +213,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 10,
     backgroundColor: '#F8F7FF',
-    borderWidth: 1.5, 
+    borderWidth: 1.5,
     borderColor: '#6F67AD',
-
- 
   },
   activeTab: {
     backgroundColor: '#4639AA',
-    
   },
   tabText: {
     color: '#4639AA',
     fontWeight: '600',
-    
   },
   activeTabText: {
     color: '#FFFFFF',
-    
   },
   listContainer: {
     paddingBottom: 20,
@@ -248,4 +285,18 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontWeight: 'bold',
   },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#918CBC',
+    marginTop: 20,
+    fontSize: 16,
+  },
 });
+
+export default PaginaDeNotificacoes;

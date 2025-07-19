@@ -230,7 +230,7 @@ const HomePage = () => {
     <View style={styles.headerContainer}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity style={styles.headerIcon}>
+        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/(protected)/Notification/page')}>
           <Feather name="bell" size={24} color="#291F75" />
         </TouchableOpacity>
       </View>

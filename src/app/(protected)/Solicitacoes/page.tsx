@@ -74,8 +74,6 @@ interface UserDataResponse extends UserDataWithoutPosts {
   posts: Omit<PostData, "category" | "user" | "department">[];
 }
 
-
-
 const SolicitacoesPage = () => {
   const router = useRouter();
   const {
@@ -317,7 +315,7 @@ const SolicitacoesPage = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Minhas Solicitações</Text>
-        <TouchableOpacity style={styles.headerIcon}>
+        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/(protected)/Notification/page')}>
           <Ionicons name="notifications-outline" size={24} color="#291f75" />
         </TouchableOpacity>
       </View>
@@ -364,18 +362,6 @@ const SolicitacoesPage = () => {
             <Text style={styles.retryButton}>Tentar Novamente</Text>
           </TouchableOpacity>
         </View>
-      ) : filteredUserPosts.length === 0 ? (
-        <View style={styles.emptyListContainer}>
-          <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
-          <TouchableOpacity
-            onPress={handleCreateNewRequest}
-            style={styles.addFirstButton}
-          >
-            <Text style={styles.addFirstButtonText}>
-              Adicionar primeira solicitação
-            </Text>
-          </TouchableOpacity>
-        </View>
       ) : (
         <FlatList<PostData>
           data={filteredUserPosts}
@@ -399,6 +385,19 @@ const SolicitacoesPage = () => {
               tintColor={"#291F75"}
             />
           }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyListContainer}>
+              <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
+              <TouchableOpacity
+                onPress={handleCreateNewRequest}
+                style={styles.addFirstButton}
+              >
+                <Text style={styles.addFirstButtonText}>
+                  Adicionar primeira solicitação
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         />
       )}
 
