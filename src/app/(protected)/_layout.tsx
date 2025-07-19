@@ -155,6 +155,13 @@ export default function ProtectedLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="Notification/page"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }
