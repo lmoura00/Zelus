@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
     width,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: -100,
   },
   card: {
     width: CARD_WIDTH,
@@ -195,6 +196,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 10,
+    
   },
   buttonSecondary: {
     position: "absolute",

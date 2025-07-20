@@ -14,7 +14,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DropDownPicker from 'react-native-dropdown-picker';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthContext } from '@/context/user-context';
@@ -117,7 +117,7 @@ const EditRequestScreen = () => {
   const [openDepartment, setOpenDepartment] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [departmentDropdownItems, setDepartmentDropdownItems] = useState<DropdownItem[]>([]);
-
+const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
   const fetchCategoriesQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
     const response = await authenticatedRequest<CategoryApiData[]>("GET", "/categories");
@@ -216,7 +216,7 @@ const EditRequestScreen = () => {
       setSelectedDepartment(postDetails.departmentId.toString());
       if (postDetails.publicUrl) {
         setImageUri(postDetails.publicUrl);
-        setImageFile(null); // Não há file object para uma imagem existente
+        setImageFile(null); 
       }
     }
   }, [postDetails]);
@@ -287,7 +287,7 @@ const EditRequestScreen = () => {
       !neighborhood ||
       !selectedCategory ||
       !selectedDepartment ||
-      (!imageUri && !imageFile) // Pelo menos uma imagem deve existir (original ou nova)
+      (!imageUri && !imageFile) 
     ) {
       Alert.alert(
         "Erro",
@@ -308,7 +308,7 @@ const EditRequestScreen = () => {
       formData.append("latitude", latitude.toString());
       formData.append("longitude", longitude.toString());
     }
-    if (imageFile) { // Só anexa o 'file' se uma nova imagem foi selecionada
+    if (imageFile) { 
       formData.append("file", imageFile);
     }
 
@@ -323,8 +323,8 @@ const EditRequestScreen = () => {
     selectedDepartment,
     latitude,
     longitude,
-    imageFile, // Depende de imageFile para saber se um novo arquivo foi selecionado
-    imageUri, // Depende de imageUri para checar se existe alguma imagem (mesmo que seja a antiga)
+    imageFile, 
+    imageUri, 
     updatePostMutation,
   ]);
 
@@ -482,7 +482,7 @@ const EditRequestScreen = () => {
             longitudeDelta: 0.05,
           }}
           onPress={handleMapPress}
-          provider={PROVIDER_GOOGLE}
+          provider={mapProvider}
         >
           {latitude !== null && longitude !== null && (
             <Marker coordinate={{ latitude, longitude }} />

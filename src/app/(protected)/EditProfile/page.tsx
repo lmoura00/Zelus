@@ -33,7 +33,7 @@ interface UserData {
 
 const EditProfilePage = () => {
   const router = useRouter();
-  const { user, authenticatedRequest, isLoading: isAuthLoading } = useContext(AuthContext);
+  const { user, authenticatedRequest, isLoading: isAuthLoading, logout } = useContext(AuthContext);
   const queryClient = useQueryClient();
 
   const [name, setName] = useState(user?.name || "");
@@ -114,7 +114,7 @@ const EditProfilePage = () => {
     onSuccess: (data) => {
       Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
       queryClient.invalidateQueries(['user']); 
-      
+      logout();
       router.back();
     },
     onError: (error) => {
