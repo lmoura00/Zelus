@@ -14,13 +14,13 @@ import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { AuthContext } from "@/context/user-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import Constants from "expo-constants";
 import { api } from "@/api";
-
+import Constants from "expo-constants";
 const { width } = Dimensions.get("window");
 
 const ContaPage = () => {
-  const { user, isLoading, logout, authenticatedRequest, refetchUser } = useContext(AuthContext);
+  const { user, isLoading, logout, authenticatedRequest } =
+    useContext(AuthContext);
   const router = useRouter();
 
   const [profileImageUri, setProfileImageUri] = useState(
@@ -72,30 +72,43 @@ const ContaPage = () => {
       });
 
       try {
-        const response = await authenticatedRequest("PATCH", "/user", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        const response = await authenticatedRequest(
+          "PATCH",
+          "/user",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
 
         if (response.data && response.data.avatarUrl) {
           setProfileImageUri(response.data.avatarUrl);
           Alert.alert("Sucesso", "Foto de perfil atualizada!");
-          refetchUser(); // Força a atualização do usuário no AuthContext
+          
         } else {
-          Alert.alert("Erro", "Resposta inesperada do servidor ao atualizar a foto.");
+          Alert.alert(
+            "Erro",
+            "Resposta inesperada do servidor ao atualizar a foto."
+          );
         }
-      } catch (error) {
-        console.error("Erro completo ao fazer upload da imagem:", error.response?.data || error.message);
+      } catch (error: any) {
+        console.error(
+          "Erro completo ao fazer upload da imagem:",
+          error.response?.data || error.message
+        );
         Alert.alert(
           "Erro ao atualizar",
-          `Falha ao atualizar foto: ${error.response?.data?.message || error.message}`
+          `Falha ao atualizar foto: ${
+            error.response?.data?.message || error.message
+          }`
         );
       } finally {
         setIsUploading(false);
       }
     },
-    [user, authenticatedRequest, refetchUser]
+    [user, authenticatedRequest]
   );
 
   const pickImage = useCallback(async () => {
@@ -134,7 +147,7 @@ const ContaPage = () => {
   }, [router]);
 
   const navigateToEditProfile = useCallback(() => {
-    router.push("/EditProfile/page"); // Nova rota
+    router.push("/EditProfile/page");
   }, [router]);
 
   if (isLoading || isUploading) {
@@ -151,8 +164,19 @@ const ContaPage = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity style={styles.headerIcon} onPress={navigateToNotifications}>
+        <View style={styles.headerTitleContainer}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("@/assets/images/logo.png")}
+              style={styles.logoImage}
+            />
+          </View>
+          <Text style={styles.headerTitle}>Zelus</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={navigateToNotifications}
+        >
           <Ionicons name="notifications-outline" size={24} color="#291f75" />
         </TouchableOpacity>
       </View>
@@ -179,10 +203,10 @@ const ContaPage = () => {
       <View style={styles.menu}>
         <MenuItem
           icon={
-            <Ionicons name="person-outline" size={20} color="#291f75" /> // Ícone para editar perfil
+            <Ionicons name="person-outline" size={20} color="#291f75" />
           }
           label="Editar Perfil"
-          onPress={navigateToEditProfile} // Navega para a nova página
+          onPress={navigateToEditProfile}
         />
         <MenuItem
           icon={
@@ -271,9 +295,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 0,
-    marginTop: -33,
-    paddingBottom: 25,
+    paddingBottom: 16, 
+    marginTop: -24,
   },
   headerTitle: {
     fontSize: 24,
@@ -375,6 +398,24 @@ const styles = StyleSheet.create({
   menuLabelDestructive: {
     color: "#D25A5A",
     fontFamily: "Nunito-SemiBold",
+  },
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#E8E1FA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoImage: {
+    width: "70%",
+    height: "70%",
+    resizeMode: "contain",
   },
 });
 

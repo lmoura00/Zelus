@@ -9,11 +9,12 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import LottieView from 'lottie-react-native';
-
+import LottieView from "lottie-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.8;
 const CARD_HEIGHT = CARD_WIDTH * 0.8;
+const LOGO_SIZE = 100;
 
 const cards = [
   {
@@ -48,15 +49,20 @@ export default function Index() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Image
         source={require("@/assets/background.png")}
         style={styles.background}
       />
-
+      <View style={styles.logoContainer}>
+        <Image
+          source={require("@/assets/images/logo.png")}
+          style={styles.logoImage}
+        />
+      </View>
       <Text style={styles.title}>Zelus</Text>
 
-       <Text style={styles.subtitle}>Junte-se {"\n"}à transformação</Text>
+      <Text style={styles.subtitle}>Junte-se {"\n"}à transformação</Text>
 
       <ScrollView
         horizontal
@@ -100,12 +106,12 @@ export default function Index() {
       >
         <Text style={styles.buttonText}>Cadastrar</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#EFAE0C" },
   background: {
     position: "absolute",
     width,
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
   },
   title: {
     position: "absolute",
-    top: 119,
+    top: 159,
     left: 30,
     fontFamily: "Nunito-Bold",
     fontSize: 32,
@@ -122,7 +128,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     position: "absolute",
-    top: 163,
+    top: 203,
     left: 30,
     fontFamily: "Nunito-Bold",
     fontSize: 24,
@@ -151,7 +157,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH * 0.8,
     height: CARD_HEIGHT * 0.6,
     marginBottom: 14,
-  
+
     opacity: 0.7,
   },
   cardText: {
@@ -209,5 +215,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#FFFFFF",
   },
-}
-);
+  logoContainer: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE / 2,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 4 },
+    marginBottom: 16,
+    marginLeft: 25,
+  
+  },
+  logoImage: {
+    width: LOGO_SIZE * 0.7,
+    height: LOGO_SIZE * 0.7,
+    resizeMode: "contain",
+  },
+});

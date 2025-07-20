@@ -17,7 +17,7 @@ import {
   ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons"; // ADDED Ionicons
 import { AuthContext } from "@/context/user-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
@@ -131,13 +131,14 @@ const HomePage = () => {
     onSuccess: () => {
       Alert.alert("Sucesso", "Solicitação denunciada com sucesso!");
       setModalVisible(false);
-      queryClient.invalidateQueries(["posts"]);
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
     onError: (error) => {
+      const apiError = error.response?.data as { message?: string };
       Alert.alert(
         "Erro",
         `Falha ao denunciar solicitação: ${
-          error.response?.data?.message || error.message
+          apiError?.message || error.message
         }`
       );
     },
@@ -157,7 +158,7 @@ const HomePage = () => {
       router.replace("/Login/page");
     }
     if (authError) {
-      Alert.alert("Erro de Autenticação", authError);
+      Alert.alert("Erro de Autenticação", authError.message);
     }
   }, [user, isAuthLoading, authError, router, token]);
 
@@ -179,7 +180,7 @@ const HomePage = () => {
     return matchesSearch && isAllowedBaseStatus && matchesStatusFilter;
   });
 
-  const handleDenounce = (item) => {
+  const handleDenounce = (item: PostData) => {
     setSelectedPost(item);
     setModalVisible(true);
   };
@@ -192,11 +193,11 @@ const HomePage = () => {
     }
   }, [selectedPost, denouncePostMutation]);
 
-  const handleViewPostDetails = (postId) => {
+  const handleViewPostDetails = (postId: number) => {
     router.push(`/SolicitacaoItem/${postId}`);
   };
 
-  const formatTimeAgo = (dateString) => {
+  const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -228,16 +229,27 @@ const HomePage = () => {
 
   const renderListHeader = () => (
     <View style={styles.headerContainer}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Zelus</Text>
-        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/(protected)/Notification/page')}>
-          <Feather name="bell" size={24} color="#291F75" />
+      {/* UPDATED HEADER STRUCTURE */}
+      <View style={styles.header}>
+        <View style={styles.headerTitleContainer}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("@/assets/images/logo.png")}
+              style={styles.logoImage}
+            />
+          </View>
+          <Text style={styles.headerTitle}>Zelus</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.push("/(protected)/Notification/page")}
+        >
+          {/* UPDATED ICON */}
+          <Ionicons name="notifications-outline" size={24} color="#291F75" />
         </TouchableOpacity>
       </View>
 
-      {user && (
-        <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>
-      )}
+      {user && <Text style={styles.welcomeText}>Bem-vindo, {user.name}!</Text>}
 
       <View style={styles.searchRow}>
         <TextInput
@@ -287,7 +299,7 @@ const HomePage = () => {
             <Text style={styles.fallbackBannerText}>Zelus</Text>
           </ImageBackground>
         ) : (
-          bannersData.map((banner, i) => (
+          bannersData.map((banner) => (
             <ImageBackground
               key={banner.id}
               source={backgroundBannerImage}
@@ -350,7 +362,7 @@ const HomePage = () => {
 
   return (
     <View style={styles.container}>
-      {isPostsLoading && !isPostsFetching ? (
+      {isPostsLoading && !requestsData ? (
         <View style={styles.loadingRequestsContainer}>
           <ActivityIndicator size="large" color="#291F75" />
           <Text style={styles.loadingText}>Carregando solicitações...</Text>
@@ -388,7 +400,10 @@ const HomePage = () => {
           refreshControl={
             <RefreshControl
               refreshing={isPostsFetching}
-              onRefresh={() => refetch()}
+              onRefresh={() => {
+                refetch();
+                refetchBanners();
+              }}
               colors={["#291F75"]}
               tintColor={"#291F75"}
             />
@@ -463,6 +478,7 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito-SemiBold",
     fontSize: 16,
     color: "#291F75",
+    marginTop: 10,
   },
   errorFullContainer: {
     flex: 1,
@@ -484,7 +500,8 @@ const styles = StyleSheet.create({
     color: "#291F75",
     textDecorationLine: "underline",
   },
-  headerRow: {
+  // RENAMED from headerRow and standardized
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -492,11 +509,31 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
+  // NEW/COPIED Styles for consistency
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#E8E1FA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoImage: {
+    width: "70%",
+    height: "70%",
+    resizeMode: "contain",
+  },
   headerTitle: {
     fontFamily: "Nunito-Bold",
     fontSize: 24,
     color: "#291F75",
   },
+  // Standardized Style
   headerIcon: {
     width: 48,
     height: 48,
@@ -558,23 +595,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     backgroundColor: "transparent",
-    resizeMode: "cover",
-  },
-  bannerLoadingPlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
   },
   bannerImage: {
     width: "100%",
     height: "100%",
     resizeMode: "contain",
-  },
-  fallbackBannerBackground: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fallbackBannerImageStyle: {
-    borderRadius: 12,
   },
   fallbackBannerText: {
     fontFamily: "Nunito-Bold",
@@ -587,20 +612,17 @@ const styles = StyleSheet.create({
   bannerImageBackgroundStyle: {
     borderRadius: 12,
     resizeMode: "cover",
-    width: "100%",
-    height: "100%",
   },
   bannerImageOverlay: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    resizeMode: "cover",
   },
   bannerDotsRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: -40,
+    marginTop: 10,
     marginBottom: 20,
   },
   bannerDot: {
@@ -619,7 +641,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     marginBottom: 16,
-    marginTop: 20,
     zIndex: 2000,
   },
   sectionTitle: {
@@ -663,107 +684,6 @@ const styles = StyleSheet.create({
     paddingBottom: height * 0.15,
     paddingTop: 8,
   },
-  card: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  tagBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "#EAEAEA",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#918CBC",
-  },
-  tagText: {
-    fontFamily: "Nunito-Bold",
-    fontSize: 11,
-    color: "#291F75",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  cardUser: {
-    fontFamily: "Nunito-Bold",
-    fontSize: 13,
-    color: "#291F75",
-    marginLeft: 8,
-  },
-  cardContent: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  cardImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    marginRight: 16,
-    resizeMode: "cover",
-  },
-  cardImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    marginRight: 16,
-    backgroundColor: "#E0E0E0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cardTitle: {
-    fontFamily: "Nunito-Bold",
-    fontSize: 16,
-    color: "#291F75",
-    marginBottom: 4,
-  },
-  cardDesc: {
-    fontSize: 13,
-    color: "#584CAF",
-    marginBottom: 8,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  cardAddress: {
-    fontFamily: "Nunito-SemiBold",
-    fontSize: 13,
-    color: "#291F75",
-    marginLeft: 6,
-  },
-  reportButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#D25A5A",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  reportText: {
-    fontFamily: "Nunito-Bold",
-    fontSize: 13,
-    color: "#D25A5A",
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -792,6 +712,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#291F75",
     marginBottom: 20,
+    lineHeight: 22,
   },
   modalBold: {
     fontWeight: "bold",
@@ -807,9 +728,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFEFEF",
     padding: 12,
     borderRadius: 10,
+    alignItems: "center",
   },
   modalCancelText: {
-    textAlign: "center",
     fontFamily: "Nunito-Bold",
     color: "#584CAF",
   },
@@ -837,5 +758,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#918CBC",
   },
+  
 });
 export default HomePage;
