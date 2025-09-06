@@ -18,13 +18,6 @@ interface UserData {
   restores?: any[];
 }
 
-interface CategoryData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface DepartmentData {
   id: number;
   name: string;
@@ -49,12 +42,10 @@ interface PostData {
   dateEnd: string | null;
   comment: string | null;
   number?: number;
-  categoryId: number;
   userId: number;
   departmentId: number;
   createdAt: string;
   updatedAt: string;
-  category: CategoryData;
   department: DepartmentData;
   user: UserData;
 }
@@ -365,9 +356,8 @@ export default function SolicitacaoItemDetails() {
         <View style={styles.infoCard}>
           <View style={styles.cardHeader}>
             <Feather name="tag" size={20} color="#291F75" style={styles.cardIcon} />
-            <Text style={styles.cardTitle}>Categoria e Departamento</Text>
+            <Text style={styles.cardTitle}>Departamento</Text>
           </View>
-          <Text style={styles.cardText}>Categoria: {postDetails.category.name}</Text>
           <Text style={styles.cardText}>Departamento: {postDetails.department.name}</Text>
         </View>
 

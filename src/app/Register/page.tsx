@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Image,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -114,13 +115,15 @@ export default function RegisterPage() {
         password,
       });
       console.log("Response:", response.status, response.data);
-      if (response.status !== 201) {
+      if (response.status !== 201 && response.status !== 200) {
         alert("Erro ao cadastrar usuário. Tente novamente.");
+        setLoading(false);
         return;
       }
       setLoading(false);
-      alert("Usuário cadastrado com sucesso!");
+      Alert.alert("Atenção","Usuário cadastrado com sucesso!");
       router.replace("/Login/page");
+      return;
     } catch (error: any) {
       setLoading(false);
       if (error.response) {

@@ -19,13 +19,6 @@ import { AuthContext } from "@/context/user-context";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
-interface CategoryData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface DepartmentData {
   id: number;
   name: string;
@@ -55,7 +48,6 @@ interface PostData {
   departmentId: number;
   createdAt: string;
   updatedAt: string;
-  category?: CategoryData;
   user?: UserDataWithoutPosts;
   department?: DepartmentData;
 }
@@ -71,8 +63,10 @@ interface UserDataWithoutPosts {
 }
 
 interface UserDataResponse extends UserDataWithoutPosts {
-  posts: Omit<PostData, "category" | "user" | "department">[];
+  posts: Omit<PostData, "user" | "department">[];
 }
+
+const windowWidth = Dimensions.get("window").width;
 
 const SolicitacoesPage = () => {
   const router = useRouter();
@@ -85,6 +79,10 @@ const SolicitacoesPage = () => {
   } = useContext(AuthContext);
 
   const [search, setSearch] = useState("");
+  const [filterDepartmentId, setFilterDepartmentId] = useState<number | null>(
+    null
+  );
+  const [showFilter, setShowFilter] = useState(false);
 
   const formatTimeAgo = useCallback((dateString: string) => {
     const date = new Date(dateString);
@@ -115,34 +113,6 @@ const SolicitacoesPage = () => {
     Alert.alert("Denunciar", `Deseja denunciar a solicitação "${item.title}"?`);
   }, []);
 
-  const fetchCategoriesQueryFn = useCallback(async () => {
-    if (!token) throw new Error("Token para categorias não disponível.");
-    const response = await authenticatedRequest<CategoryData[]>(
-      "GET",
-      "/categories"
-    );
-    return response.data;
-  }, [token, authenticatedRequest]);
-
-  const {
-    data: categories,
-    isLoading: isCategoriesLoading,
-    isError: isCategoriesError,
-  } = useQuery<CategoryData[], AxiosError>({
-    queryKey: ["categories", token],
-    queryFn: fetchCategoriesQueryFn,
-    enabled: !!token,
-    staleTime: Infinity,
-    onError: (err) => {
-      Alert.alert(
-        "Erro",
-        `Não foi possível carregar categorias: ${
-          err.message || "Erro desconhecido"
-        }`
-      );
-    },
-  });
-
   const fetchDepartmentsQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token para departamentos não disponível.");
     const response = await authenticatedRequest<DepartmentData[]>(
@@ -156,6 +126,7 @@ const SolicitacoesPage = () => {
     data: departments,
     isLoading: isDepartmentsLoading,
     isError: isDepartmentsError,
+    refetch: refetchDepartments,
   } = useQuery<DepartmentData[], AxiosError>({
     queryKey: ["departments", token],
     queryFn: fetchDepartmentsQueryFn,
@@ -174,37 +145,30 @@ const SolicitacoesPage = () => {
   const fetchUserPostsQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
     if (!user?.id) throw new Error("ID do usuário não disponível.");
-    if (!categories || !departments)
-      throw new Error("Dados de categoria/departamento não carregados.");
+    if (!departments) throw new Error("Dados de departamento não carregados.");
 
     const response = await authenticatedRequest<UserDataResponse>(
       "GET",
       `/user/${user.id}`
     );
 
+    const postUser: UserDataWithoutPosts = {
+      id: response.data.id,
+      name: response.data.name,
+      email: response.data.email,
+      cpf: response.data.cpf,
+      createdAt: response.data.createdAt,
+      updatedAt: response.data.updatedAt,
+      restores: response.data.restores,
+    };
+
     const postsWithDetails: PostData[] = response.data.posts.map((post) => {
-      const fullCategory = categories.find((cat) => cat.id === post.categoryId);
       const fullDepartment = departments.find(
         (dep) => dep.id === post.departmentId
       );
-      const postUser: UserDataWithoutPosts = {
-        id: response.data.id,
-        name: response.data.name,
-        email: response.data.email,
-        cpf: response.data.cpf,
-        createdAt: response.data.createdAt,
-        updatedAt: response.data.updatedAt,
-        restores: response.data.restores,
-      };
 
       return {
         ...post,
-        category: fullCategory || {
-          id: post.categoryId,
-          name: "Desconhecida",
-          createdAt: "",
-          updatedAt: "",
-        },
         department: fullDepartment || {
           id: post.departmentId,
           name: "Desconhecido",
@@ -212,20 +176,12 @@ const SolicitacoesPage = () => {
           updatedAt: "",
           admins: [],
         },
-        user: postUser, 
+        user: postUser,
       };
     });
 
     return postsWithDetails;
-  }, [
-    token,
-    user?.id,
-    user?.name,
-    user?.email,
-    authenticatedRequest,
-    categories,
-    departments,
-  ]);
+  }, [token, user?.id, authenticatedRequest, departments]);
 
   const {
     data: userPosts,
@@ -235,9 +191,9 @@ const SolicitacoesPage = () => {
     refetch: refetchUserPosts,
     isError: hasUserPostsError,
   } = useQuery<PostData[], AxiosError>({
-    queryKey: ["userPosts", user?.id, token, categories, departments], 
+    queryKey: ["userPosts", user?.id, token, departments],
     queryFn: fetchUserPostsQueryFn,
-    enabled: !!token && !!user?.id && !!categories && !!departments,
+    enabled: !!token && !!user?.id && !!departments,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -260,19 +216,22 @@ const SolicitacoesPage = () => {
 
   const filteredUserPosts = (userPosts || []).filter((item: PostData) => {
     const lowerCaseSearch = search.toLowerCase();
-    return (
+    const matchesSearch =
       item.title.toLowerCase().includes(lowerCaseSearch) ||
       item.description.toLowerCase().includes(lowerCaseSearch) ||
-      item.category?.name?.toLowerCase().includes(lowerCaseSearch) ||
-      item.user?.name?.toLowerCase().includes(lowerCaseSearch)
-    );
+      item.user?.name?.toLowerCase().includes(lowerCaseSearch);
+
+    const matchesDepartment =
+      filterDepartmentId === null || item.departmentId === filterDepartmentId;
+
+    return matchesSearch && matchesDepartment;
   });
 
   const handleCreateNewRequest = useCallback(() => {
     router.push("/AddRequest/page");
   }, [router]);
 
-  if (isAuthLoading || isCategoriesLoading || isDepartmentsLoading) {
+  if (isAuthLoading || isDepartmentsLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
@@ -285,23 +244,14 @@ const SolicitacoesPage = () => {
     return null;
   }
 
-  if (isCategoriesError || isDepartmentsError) {
-    function refetchCategories() {
-      throw new Error("Function not implemented.");
-    }
-
-    function refetchDepartments() {
-      throw new Error("Function not implemented.");
-    }
-
+  if (isDepartmentsError) {
     return (
       <View style={styles.errorListContainer}>
         <Text style={styles.errorText}>
-          Erro ao carregar dados essenciais (categorias/departamentos).
+          Erro ao carregar dados essenciais (departamentos).
         </Text>
         <TouchableOpacity
           onPress={() => {
-            refetchCategories();
             refetchDepartments();
           }}
         >
@@ -313,13 +263,18 @@ const SolicitacoesPage = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header estilizado */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Minhas Solicitações</Text>
-        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/(protected)/Notification/page')}>
-          <Ionicons name="notifications-outline" size={24} color="#291f75" />
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.push("/(protected)/Notification/page")}
+        >
+          <Ionicons name="notifications-outline" size={26} color="#291f75" />
         </TouchableOpacity>
       </View>
 
+      {/* Barra de busca com sombra */}
       <View style={styles.searchContainer}>
         <TextInput
           placeholder="Buscar minhas solicitações..."
@@ -329,22 +284,68 @@ const SolicitacoesPage = () => {
           onChangeText={setSearch}
         />
         <TouchableOpacity style={styles.searchButton}>
-          <Feather name="search" size={20} color="#FFFFFF" />
+          <Feather name="search" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
+      {/* Filtro e título */}
       <View style={styles.filterContainer}>
-        <Text style={styles.sectionTitle}>Últimas solicitações:</Text>
-        <TouchableOpacity style={styles.filterButton}>
+        <Text style={styles.sectionTitle}>Últimas solicitações</Text>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilter((prev) => !prev)}
+        >
           <MaterialCommunityIcons
             name="filter-outline"
-            size={20}
+            size={22}
             color="#FFFFFF"
           />
           <Text style={styles.filterText}>Filtrar</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Filtro de departamentos com efeito cartão */}
+      {showFilter && (
+        <View style={styles.filterCard}>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              filterDepartmentId === null && styles.filterOptionSelected,
+            ]}
+            onPress={() => setFilterDepartmentId(null)}
+          >
+            <Text
+              style={{
+                color: filterDepartmentId === null ? "#291F75" : "#918CBC",
+                fontWeight: filterDepartmentId === null ? "bold" : "normal",
+              }}
+            >
+              Todos os departamentos
+            </Text>
+          </TouchableOpacity>
+          {departments?.map((dep) => (
+            <TouchableOpacity
+              key={dep.id}
+              style={[
+                styles.filterOption,
+                filterDepartmentId === dep.id && styles.filterOptionSelected,
+              ]}
+              onPress={() => setFilterDepartmentId(dep.id)}
+            >
+              <Text
+                style={{
+                  color: filterDepartmentId === dep.id ? "#291F75" : "#918CBC",
+                  fontWeight: filterDepartmentId === dep.id ? "bold" : "normal",
+                }}
+              >
+                {dep.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Lista de solicitações */}
       {isUserPostsLoading && !isUserPostsFetching ? (
         <View style={styles.loadingListContainer}>
           <ActivityIndicator size="large" color="#291F75" />
@@ -387,7 +388,15 @@ const SolicitacoesPage = () => {
           }
           ListEmptyComponent={() => (
             <View style={styles.emptyListContainer}>
-              <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={48}
+                color="#EFAE0C"
+                style={{ marginBottom: 12 }}
+              />
+              <Text style={styles.emptyText}>
+                Nenhuma solicitação encontrada.
+              </Text>
               <TouchableOpacity
                 onPress={handleCreateNewRequest}
                 style={styles.addFirstButton}
@@ -401,9 +410,11 @@ const SolicitacoesPage = () => {
         />
       )}
 
+      {/* Botão flutuante para adicionar */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={handleCreateNewRequest}
+        activeOpacity={0.85}
       >
         <Ionicons name="add" size={32} color="#291f75" />
       </TouchableOpacity>
@@ -416,7 +427,132 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7F8F9",
     paddingBottom: 120,
-    marginBottom: 0,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 18,
+    backgroundColor: "#291F75",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    elevation: 4,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: "Nunito-Bold",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#EFAE0C",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    marginTop: -14,
+    paddingHorizontal: 20,
+    marginBottom: 18,
+    zIndex: 2,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#291f75",
+    borderWidth: 1,
+    borderColor: "#e8e1fa",
+    marginRight: 10,
+    elevation: 2,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+  },
+  searchButton: {
+    backgroundColor: "#291f75",
+    paddingHorizontal: 18,
+    justifyContent: "center",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    height: 48,
+    alignItems: "center",
+  },
+  filterContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 0,
+  },
+  sectionTitle: {
+    fontFamily: "Nunito-Bold",
+    fontSize: 18,
+    color: "#291f75",
+    letterSpacing: 0.2,
+  },
+  filterButton: {
+    flexDirection: "row",
+    backgroundColor: "#291f75",
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  filterText: {
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontSize: 15,
+    fontFamily: "Nunito-SemiBold",
+  },
+  filterCard: {
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    elevation: 3,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+  },
+  filterOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#F8F7FF",
+    marginBottom: 6,
+  },
+  filterOptionSelected: {
+    backgroundColor: "#E8E1FA",
+    borderColor: "#291F75",
+    borderWidth: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -456,103 +592,17 @@ const styles = StyleSheet.create({
     color: "#291f75",
     textDecorationLine: "underline",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: "Nunito-Bold",
-    color: "#291f75",
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e8e1fa",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    marginTop: 10,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  searchInput: {
-    flex: 1,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: "#e8e1fa",
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#291f75",
-    borderWidth: 1,
-    borderColor: "#d8d0ed",
-    marginRight: 10,
-  },
-  searchButton: {
-    backgroundColor: "#291f75",
-    paddingHorizontal: 18,
-    justifyContent: "center",
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  filterContainer: {
-    marginTop: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontFamily: "Nunito-Bold",
-    fontSize: 18,
-    color: "#291f75",
-  },
-  filterButton: {
-    flexDirection: "row",
-    backgroundColor: "#291f75",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  filterText: {
-    color: "#FFFFFF",
-    marginLeft: 8,
-    fontSize: 15,
-    fontFamily: "Nunito-SemiBold",
-  },
   emptyListContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 30,
+    paddingTop: 40,
   },
   emptyText: {
     textAlign: "center",
     color: "#918CBC",
-    marginTop: 20,
+    marginTop: 10,
     fontSize: 16,
     fontFamily: "Nunito-Regular",
     marginBottom: 20,

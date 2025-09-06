@@ -27,13 +27,6 @@ import { AxiosError } from "axios";
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 
-interface CategoryApiData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface DepartmentApiData {
   id: number;
   name: string;
@@ -81,14 +74,6 @@ const CreateRequestScreen = () => {
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  
-
-  const [openCategory, setOpenCategory] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categoryDropdownItems, setCategoryDropdownItems] = useState<
-    DropdownItem[]
-  >([]);
-
   const [openDepartment, setOpenDepartment] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(
     null
@@ -97,34 +82,7 @@ const CreateRequestScreen = () => {
     DropdownItem[]
   >([]);
 
-  const fetchCategoriesQueryFn = useCallback(async () => {
-    if (!token) throw new Error("Token de autenticação não disponível.");
-    const response = await authenticatedRequest<CategoryApiData[]>(
-      "GET",
-      "/categories"
-    );
-    return response.data;
-  }, [token, authenticatedRequest]);
-
-  const {
-    data: categories,
-    isLoading: isCategoriesLoading,
-    isError: isCategoriesError,
-    error: categoriesError,
-  } = useQuery<CategoryApiData[], AxiosError>({
-    queryKey: ["categories", token],
-    queryFn: fetchCategoriesQueryFn,
-    enabled: !!token,
-    staleTime: Infinity,
-    onError: (err) => {
-      Alert.alert(
-        "Erro",
-        `Não foi possível carregar categorias: ${
-          err.message || "Erro desconhecido"
-        }`
-      );
-    },
-  });
+  const [addressMode, setAddressMode] = useState<'manual' | 'map'>('manual');
 
   const fetchDepartmentsQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
@@ -154,16 +112,6 @@ const CreateRequestScreen = () => {
       );
     },
   });
-
-  useEffect(() => {
-    if (categories) {
-      const mappedCategories = categories.map((cat) => ({
-        label: cat.name,
-        value: cat.id.toString(),
-      }));
-      setCategoryDropdownItems(mappedCategories);
-    }
-  }, [categories]);
 
   useEffect(() => {
     if (departments) {
@@ -225,6 +173,7 @@ const CreateRequestScreen = () => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setLatitude(latitude);
     setLongitude(longitude);
+    fetchAddressFromCoords(latitude, longitude); 
   };
 
   const fetchAddressByCep = useCallback(async (currentCep: string) => {
@@ -269,20 +218,64 @@ const CreateRequestScreen = () => {
     return () => clearTimeout(handler);
   }, [cep, fetchAddressByCep]);
 
+  const fetchAddressFromCoords = async (lat: number, lng: number) => {
+  
+    const apiKey =
+      Platform.OS === "android"
+        ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY
+        : process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY;
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=pt-BR`
+      );
+      console.log("env", process.env.GOOGLE_MAPS_ANDROID_API_KEY);
+      const data = await response.json();
+      console.log("Geocode response:", data); 
+      if (data.status === "OK" && data.results.length > 0) {
+        const result = data.results[0];
+        let cep = "";
+        let bairro = "";
+        let logradouro = "";
+
+        result.address_components.forEach((comp: any) => {
+          if (comp.types.includes("postal_code")) cep = comp.long_name;
+          if (
+            comp.types.includes("sublocality") ||
+            comp.types.includes("sublocality_level_1") ||
+            comp.types.includes("neighborhood")
+          )
+            bairro = comp.long_name;
+          if (
+            comp.types.includes("route") ||
+            comp.types.includes("street_address")
+          )
+            logradouro = comp.long_name;
+        });
+
+        setAddress(logradouro);
+        setCep(cep);
+        setNeighborhood(bairro);
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível obter o endereço pelo mapa.");
+    }
+  };
+
   const handleSubmit = useCallback(() => {
     if (
       !title ||
       !description ||
-      !address ||
-      !cep ||
-      !neighborhood ||
-      !selectedCategory ||
       !selectedDepartment ||
-      !imageFile
+      !imageFile ||
+      (addressMode === "manual" &&
+        (!address || !cep || !neighborhood)) ||
+      (addressMode === "map" &&
+        (latitude === null || longitude === null))
     ) {
       Alert.alert(
         "Erro",
-        "Por favor, preencha todos os campos e adicione uma imagem."
+        "Por favor, preencha todos os campos obrigatórios."
       );
       return;
     }
@@ -293,7 +286,6 @@ const CreateRequestScreen = () => {
     formData.append("address", address);
     formData.append("cep", cep);
     formData.append("neighborhood", neighborhood);
-    formData.append("categoryId", selectedCategory);
     formData.append("departmentId", selectedDepartment);
     if (latitude !== null && longitude !== null) {
       formData.append("latitude", latitude.toString());
@@ -308,7 +300,6 @@ const CreateRequestScreen = () => {
     address,
     cep,
     neighborhood,
-    selectedCategory,
     selectedDepartment,
     latitude,
     longitude,
@@ -316,10 +307,29 @@ const CreateRequestScreen = () => {
     createPostMutation,
   ]);
 
+  const handleGetCurrentLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permissão negada",
+          "Permita o acesso à localização para usar este recurso."
+        );
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      setLatitude(location.coords.latitude);
+      setLongitude(location.coords.longitude);
+      fetchAddressFromCoords(location.coords.latitude, location.coords.longitude); 
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível obter sua localização.");
+    }
+  };
+
   const mapProvider =
     Platform.OS === "android" ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-  if (isCategoriesLoading || isDepartmentsLoading) {
+  if (isDepartmentsLoading) {
     return (
       <View style={styles.fullscreenLoadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
@@ -328,11 +338,11 @@ const CreateRequestScreen = () => {
     );
   }
 
-  if (isCategoriesError || isDepartmentsError) {
+  if (isDepartmentsError) {
     return (
       <View style={styles.fullscreenErrorContainer}>
         <Text style={styles.errorText}>
-          Não foi possível carregar as opções de categoria ou departamento.
+          Não foi possível carregar as opções de departamento.
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -347,13 +357,16 @@ const CreateRequestScreen = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={20} color="#291F75" />
-        <Text style={styles.backButtonText}>Voltar</Text>
-      </TouchableOpacity>
+      {/* Header com destaque */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={20} color="#291F75" />
+          <Text style={styles.backButtonText}>Voltar</Text>
+        </TouchableOpacity>
+        <Text style={styles.header}>Criar Solicitação</Text>
+      </View>
 
-      <Text style={styles.header}>Criar Solicitação</Text>
-
+      {/* Imagem */}
       <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.pickedImage} />
@@ -362,6 +375,7 @@ const CreateRequestScreen = () => {
         )}
       </TouchableOpacity>
 
+      {/* Inputs */}
       <Text style={styles.label}>Título da Solicitação:</Text>
       <TextInput
         placeholder="Ex: Poste queimado"
@@ -380,29 +394,6 @@ const CreateRequestScreen = () => {
         value={description}
         onChangeText={setDescription}
       />
-
-      <Text style={styles.label}>Tipo de Solicitação:</Text>
-      <View
-        style={[
-          styles.dropdownWrapper,
-          Platform.OS !== "android" && { zIndex: 3000 },
-        ]}
-      >
-        <DropDownPicker
-          listMode="SCROLLVIEW"
-          open={openCategory}
-          value={selectedCategory}
-          items={categoryDropdownItems}
-          setOpen={setOpenCategory}
-          setValue={setSelectedCategory}
-          setItems={setCategoryDropdownItems}
-          placeholder="Selecione o tipo..."
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-          zIndex={3000}
-          zIndexInverse={1000}
-        />
-      </View>
 
       <Text style={styles.label}>Departamento Responsável:</Text>
       <View
@@ -427,66 +418,132 @@ const CreateRequestScreen = () => {
         />
       </View>
 
-      <Text style={styles.label}>CEP:</Text>
-      <TextInput
-        placeholder="00000-000"
-        placeholderTextColor="#918CBC"
-        style={styles.input}
-        value={cep}
-        onChangeText={setCep}
-        keyboardType="numeric"
-        maxLength={8}
-      />
-      {isCepLoading && (
-        <View style={styles.cepLoadingIndicator}>
-          <ActivityIndicator size="small" color="#291F75" />
-        </View>
-      )}
-
-      <Text style={styles.label}>Endereço:</Text>
-      <TextInput
-        placeholder="Ex: Av. Principal, 123"
-        placeholderTextColor="#918CBC"
-        style={styles.input}
-        value={address}
-        onChangeText={setAddress}
-      />
-
-      <Text style={styles.label}>Bairro:</Text>
-      <TextInput
-        placeholder="Ex: Centro"
-        placeholderTextColor="#918CBC"
-        style={styles.input}
-        value={neighborhood}
-        onChangeText={setNeighborhood}
-      />
-
-      <Text style={styles.label}>Local no Mapa (Toque para selecionar):</Text>
-      <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          followsUserLocation
-          initialRegion={{
-            latitude: -5.0881,
-            longitude: -42.8361,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-          onPress={handleMapPress}
-          provider={mapProvider}
-          showsUserLocation
-          showsMyLocationButton
+      {/* Alternância de modo de endereço */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            addressMode === "manual" && styles.toggleButtonActive,
+          ]}
+          onPress={() => setAddressMode("manual")}
         >
-          {latitude !== null && longitude !== null && (
-            <Marker coordinate={{ latitude, longitude }} />
-          )}
-        </MapView>
+          <Text style={{ color: addressMode === "manual" ? "#291F75" : "#918CBC" }}>
+            Inserir endereço
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            addressMode === "map" && styles.toggleButtonActive,
+          ]}
+          onPress={() => setAddressMode("map")}
+        >
+          <Text style={{ color: addressMode === "map" ? "#291F75" : "#918CBC" }}>
+            Selecionar no mapa
+          </Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Endereço manual ou mapa */}
+      {addressMode === "manual" ? (
+        <>
+          <Text style={styles.label}>CEP:</Text>
+          <TextInput
+            placeholder="00000-000"
+            placeholderTextColor="#918CBC"
+            style={styles.input}
+            value={cep}
+            onChangeText={setCep}
+            keyboardType="numeric"
+            maxLength={8}
+          />
+          {isCepLoading && (
+            <View style={styles.cepLoadingIndicator}>
+              <ActivityIndicator size="small" color="#291F75" />
+            </View>
+          )}
+
+          <Text style={styles.label}>Endereço:</Text>
+          <TextInput
+            placeholder="Ex: Av. Principal, 123"
+            placeholderTextColor="#918CBC"
+            style={styles.input}
+            value={address}
+            onChangeText={setAddress}
+          />
+
+          <Text style={styles.label}>Bairro:</Text>
+          <TextInput
+            placeholder="Ex: Centro"
+            placeholderTextColor="#918CBC"
+            style={styles.input}
+            value={neighborhood}
+            onChangeText={setNeighborhood}
+          />
+        </>
+      ) : (
+        <>
+          <Text style={styles.label}>Local no Mapa (Toque para selecionar):</Text>
+
+          {/* Botão para pegar localização atual */}
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={handleGetCurrentLocation}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="locate" size={20} color="#291F75" />
+            <Text style={styles.locationButtonText}>Usar minha localização atual</Text>
+          </TouchableOpacity>
+
+          <View style={styles.mapContainer}>
+            <MapView
+              style={styles.map}
+              followsUserLocation
+              initialRegion={{
+                latitude: latitude ?? -5.0881,
+                longitude: longitude ?? -42.8361,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+              region={
+                latitude && longitude
+                  ? {
+                      latitude,
+                      longitude,
+                      latitudeDelta: 0.005,
+                      longitudeDelta: 0.005,
+                    }
+                  : undefined
+              }
+              onPress={handleMapPress}
+              provider={mapProvider}
+              showsUserLocation
+              showsMyLocationButton={false}
+              onUserLocationChange={(event) => {
+                if (
+                  event.nativeEvent.coordinate &&
+                  latitude === null &&
+                  longitude === null
+                ) {
+                  setLatitude(event.nativeEvent.coordinate.latitude);
+                  setLongitude(event.nativeEvent.coordinate.longitude);
+                }
+              }}
+            >
+              {latitude !== null && longitude !== null && (
+                <Marker coordinate={{ latitude, longitude }} />
+              )}
+            </MapView>
+          </View>
+        </>
+      )}
+
+      {/* Botão de envio */}
       <TouchableOpacity
         style={styles.submitButton}
         onPress={handleSubmit}
         disabled={createPostMutation.isPending}
+        activeOpacity={0.85}
       >
         {createPostMutation.isPending ? (
           <ActivityIndicator color="#FFF" />
@@ -538,28 +595,36 @@ const styles = StyleSheet.create({
     color: "#291F75",
     textDecorationLine: "underline",
   },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginBottom: 10,
+  },
+  header: {
+    fontSize: 24,
+    fontFamily: "Nunito-Bold",
+    color: "#291F75",
+    textAlign: "center",
+    flex: 1,
+    marginRight: 48,
+  },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8F7FF",
     borderRadius: 18,
-    marginVertical: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
     alignSelf: "flex-start",
+    marginRight: 10,
+    elevation: 2,
   },
   backButtonText: {
     color: "#291F75",
     fontSize: 16,
     marginLeft: 8,
     fontFamily: "Nunito-SemiBold",
-  },
-  header: {
-    fontSize: 26,
-    fontFamily: "Nunito-Bold",
-    color: "#291F75",
-    textAlign: "center",
-    marginBottom: 30,
   },
   imagePicker: {
     width: "100%",
@@ -574,6 +639,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     overflow: "hidden",
     backgroundColor: "#E8E1FA",
+    elevation: 2,
   },
   pickedImage: {
     width: "100%",
@@ -598,6 +664,7 @@ const styles = StyleSheet.create({
     color: "#291F75",
     marginBottom: 20,
     backgroundColor: "#F8F7FF",
+    elevation: 1,
   },
   textarea: { height: 120, textAlignVertical: "top" },
   dropdownWrapper: { marginBottom: 20 },
@@ -611,6 +678,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#F8F7FF",
   },
+  toggleContainer: {
+    flexDirection: "row",
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: "#F8F7FF",
+    borderWidth: 1,
+    borderColor: "#D8D0ED",
+    borderRadius: 8,
+    alignItems: "center",
+    marginRight: 8,
+    elevation: 1,
+  },
+  toggleButtonActive: {
+    backgroundColor: "#E8E1FA",
+    borderColor: "#291F75",
+    elevation: 2,
+  },
   mapContainer: {
     height: 200,
     borderRadius: 10,
@@ -618,6 +706,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "#D8D0ED",
+    backgroundColor: "#F8F7FF",
+    elevation: 2,
   },
   map: {
     width: "100%",
@@ -646,6 +736,22 @@ const styles = StyleSheet.create({
     right: 30,
     top: "48%",
     transform: [{ translateY: -10 }],
+  },
+  locationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    marginBottom: 8,
+    backgroundColor: "#E8E1FA",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  locationButtonText: {
+    color: "#291F75",
+    marginLeft: 6,
+    fontFamily: "Nunito-SemiBold",
+    fontSize: 15,
   },
 });
 

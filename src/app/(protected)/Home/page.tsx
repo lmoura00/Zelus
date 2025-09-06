@@ -387,14 +387,28 @@ const HomePage = () => {
               onDenounce={handleDenounce}
               formatTimeAgo={formatTimeAgo}
             />
-          )}
+          )} 
           contentContainerStyle={styles.flatListContent}
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={() => (
             <View style={styles.emptyListContainer}>
+              <Ionicons
+                name="document-text-outline"
+                size={48}
+                color="#EFAE0C"
+                style={{ marginBottom: 12 }}
+              />
               <Text style={styles.emptyListText}>
                 Nenhuma solicitação encontrada.
               </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(protected)/AddRequest/page")}
+                style={styles.addFirstButton}
+              >
+                <Text style={styles.addFirstButtonText}>
+                  Adicionar primeira solicitação
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
           refreshControl={
@@ -448,6 +462,20 @@ const HomePage = () => {
           </View>
         </View>
       </Modal>
+
+      <TouchableOpacity
+        style={styles.addFirstButton}
+        onPress={() => router.push("/CriarSolicitacao")}
+      >
+        <Text style={styles.addFirstButtonText}>+ Criar Solicitação</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => router.push("/CriarSolicitacao")}
+      >
+        <Feather name="plus" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -459,8 +487,14 @@ const styles = StyleSheet.create({
     paddingTop: Constants.statusBarHeight,
   },
   headerContainer: {
-    backgroundColor: "#F7F8F9",
+    backgroundColor: "#E8E1FA",
     paddingBottom: 0,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    elevation: 4,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -500,7 +534,6 @@ const styles = StyleSheet.create({
     color: "#291F75",
     textDecorationLine: "underline",
   },
-  // RENAMED from headerRow and standardized
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -509,7 +542,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
-  // NEW/COPIED Styles for consistency
   headerTitleContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -562,14 +594,18 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 50,
-    borderRadius: 10,
-    backgroundColor: "#E8E1FA",
+    borderRadius: 12,
+    backgroundColor: "#fff",
     paddingHorizontal: 16,
     fontSize: 16,
     color: "#291F75",
     borderWidth: 1,
-    borderColor: "#D8D0ED",
+    borderColor: "#E8E1FA",
     marginRight: 10,
+    elevation: 2,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
   },
   searchBtn: {
     backgroundColor: "#291F75",
@@ -642,6 +678,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
     zIndex: 2000,
+    marginTop: 10,
   },
   sectionTitle: {
     fontFamily: "Nunito-Bold",
@@ -649,7 +686,13 @@ const styles = StyleSheet.create({
     color: "#291F75",
   },
   filterDropdownWrapper: {
-    width: 150,
+    width: 170,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: "#291F75",
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
   },
   dropdown: {
     borderColor: "#D8D0ED",
@@ -681,8 +724,9 @@ const styles = StyleSheet.create({
     height: 18,
   },
   flatListContent: {
-    paddingBottom: height * 0.15,
+    paddingBottom: height * 0.18,
     paddingTop: 8,
+    paddingHorizontal: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -752,12 +796,47 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 40,
+    marginTop: 40,
   },
   emptyListText: {
     fontFamily: "Nunito-SemiBold",
     fontSize: 16,
     color: "#918CBC",
+    marginBottom: 20,
+    textAlign: "center",
   },
-  
+  addFirstButton: {
+    backgroundColor: "#291F75",
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  addFirstButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: "Nunito-SemiBold",
+  },
+  addButton: {
+    backgroundColor: "#EFAE0C",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    position: "absolute",
+    bottom: 40,
+    right: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 100,
+  },
 });
+
 export default HomePage;

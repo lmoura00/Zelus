@@ -21,13 +21,6 @@ import { AuthContext } from '@/context/user-context';
 import { AxiosError } from 'axios';
 import Constants from 'expo-constants';
 
-interface CategoryApiData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface DepartmentApiData {
   id: number;
   name: string;
@@ -49,13 +42,6 @@ interface UserData {
   createdAt?: string;
   updatedAt?: string;
   restores?: any[];
-}
-
-interface CategoryData {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface DepartmentData {
@@ -82,12 +68,10 @@ interface PostData {
   dateEnd: string | null;
   comment: string | null;
   number?: number;
-  categoryId: number;
   userId: number;
   departmentId: number;
   createdAt: string;
   updatedAt: string;
-  category: CategoryData;
   department: DepartmentData;
   user: UserData;
 }
@@ -110,35 +94,10 @@ const EditRequestScreen = () => {
   const [imageUri, setImageUri] = useState<string | null>(null); // Uri da imagem selecionada ou original
   const [imageFile, setImageFile] = useState<File | null>(null); // File object para upload (só se nova imagem for selecionada)
 
-  const [openCategory, setOpenCategory] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categoryDropdownItems, setCategoryDropdownItems] = useState<DropdownItem[]>([]);
-
   const [openDepartment, setOpenDepartment] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [departmentDropdownItems, setDepartmentDropdownItems] = useState<DropdownItem[]>([]);
 const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
-  const fetchCategoriesQueryFn = useCallback(async () => {
-    if (!token) throw new Error("Token de autenticação não disponível.");
-    const response = await authenticatedRequest<CategoryApiData[]>("GET", "/categories");
-    return response.data;
-  }, [token, authenticatedRequest]);
-
-  const {
-    data: categories,
-    isLoading: isCategoriesLoading,
-    isError: isCategoriesError,
-    error: categoriesError,
-  } = useQuery<CategoryApiData[], AxiosError>({
-    queryKey: ['categories', token],
-    queryFn: fetchCategoriesQueryFn,
-    enabled: !!token,
-    staleTime: Infinity,
-    onError: (err) => {
-      Alert.alert('Erro', `Não foi possível carregar categorias: ${err.message || 'Erro desconhecido'}`);
-    },
-  });
-
   const fetchDepartmentsQueryFn = useCallback(async () => {
     if (!token) throw new Error("Token de autenticação não disponível.");
     const response = await authenticatedRequest<DepartmentApiData[]>("GET", "/departments");
@@ -184,16 +143,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
   });
 
   useEffect(() => {
-    if (categories) {
-      const mappedCategories = categories.map(cat => ({
-        label: cat.name,
-        value: cat.id.toString(),
-      }));
-      setCategoryDropdownItems(mappedCategories);
-    }
-  }, [categories]);
-
-  useEffect(() => {
     if (departments) {
       const mappedDepartments = departments.map(dep => ({
         label: dep.name,
@@ -212,7 +161,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
       setNeighborhood(postDetails.neighborhood);
       setLatitude(postDetails.latitude !== null ? parseFloat(postDetails.latitude) : null);
       setLongitude(postDetails.longitude !== null ? parseFloat(postDetails.longitude) : null);
-      setSelectedCategory(postDetails.categoryId.toString());
       setSelectedDepartment(postDetails.departmentId.toString());
       if (postDetails.publicUrl) {
         setImageUri(postDetails.publicUrl);
@@ -285,7 +233,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
       !address ||
       !cep ||
       !neighborhood ||
-      !selectedCategory ||
       !selectedDepartment ||
       (!imageUri && !imageFile) 
     ) {
@@ -302,7 +249,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
     formData.append("address", address);
     formData.append("cep", cep);
     formData.append("neighborhood", neighborhood);
-    formData.append("categoryId", selectedCategory);
     formData.append("departmentId", selectedDepartment);
     if (latitude !== null && longitude !== null) {
       formData.append("latitude", latitude.toString());
@@ -319,7 +265,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
     address,
     cep,
     neighborhood,
-    selectedCategory,
     selectedDepartment,
     latitude,
     longitude,
@@ -328,7 +273,7 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
     updatePostMutation,
   ]);
 
-  if (isCategoriesLoading || isDepartmentsLoading || isPostDetailsLoading || isPostDetailsError) {
+  if (isDepartmentsLoading || isPostDetailsLoading || isPostDetailsError) {
     return (
       <View style={styles.fullscreenLoadingContainer}>
         <ActivityIndicator size="large" color="#291F75" />
@@ -340,7 +285,7 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
             <Text style={styles.retryButton}>Tentar Novamente</Text>
           </TouchableOpacity>
         )}
-        {(isCategoriesError || isDepartmentsError) && (
+        {(isDepartmentsError) && (
           <TouchableOpacity onPress={() => { router.reload(); }}>
             <Text style={styles.retryButton}>Recarregar Página</Text>
           </TouchableOpacity>
@@ -395,29 +340,6 @@ const mapProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAU
         value={description}
         onChangeText={setDescription}
       />
-
-      <Text style={styles.label}>Tipo de Solicitação:</Text>
-      <View
-        style={[
-          styles.dropdownWrapper,
-          Platform.OS !== "android" && { zIndex: 3000 },
-        ]}
-      >
-        <DropDownPicker
-          listMode="SCROLLVIEW"
-          open={openCategory}
-          value={selectedCategory}
-          items={categoryDropdownItems}
-          setOpen={setOpenCategory}
-          setValue={setSelectedCategory}
-          setItems={setCategoryDropdownItems}
-          placeholder="Selecione o tipo..."
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-          zIndex={3000}
-          zIndexInverse={1000}
-        />
-      </View>
 
       <Text style={styles.label}>Departamento Responsável:</Text>
       <View

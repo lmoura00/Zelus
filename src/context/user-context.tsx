@@ -157,8 +157,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401 && url !== '/session') {
-          // This specific 401 case is handled by the response interceptor for non-login calls.
-          // Re-throwing the error ensures the caller knows there was an issue.
       }
       throw err;
     }

@@ -17,13 +17,6 @@ interface UserData {
     avatarUrl?: string;
 }
 
-interface CategoryData {
-    id: number;
-    name: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
 interface DepartmentData {
     id: number;
     name: string;
@@ -48,12 +41,10 @@ interface PostData {
     dateEnd: string | null;
     comment: string | null;
     number?: number;
-    categoryId: number;
     userId: number;
     departmentId: number;
     createdAt: string;
     updatedAt: string;
-    category?: CategoryData;
     user?: UserData;
     department?: DepartmentData;
 }
@@ -133,9 +124,6 @@ export default function SolicitacaoItem({
             activeOpacity={0.8}
         >
             <View style={styles.headerTopRight}>
-                <View style={styles.tagBadge}>
-                    <Text style={styles.tagText}>{item.category?.name || 'Tipo Desconhecido'}</Text>
-                </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusProps.backgroundColor, borderColor: statusProps.color }]}>
                     <Text style={[styles.statusText, { color: statusProps.color }]}>{statusProps.text}</Text>
                 </View>
@@ -210,20 +198,6 @@ const styles = StyleSheet.create({
         top: 16,
         right: 16,
         zIndex: 1,
-    },
-    tagBadge: {
-        backgroundColor: '#EAEAEA',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#918CBC',
-        marginRight: 8,
-    },
-    tagText: {
-        fontSize: 11,
-        color: '#291F75',
-        fontFamily: 'Nunito-Bold',
     },
     statusBadge: {
         paddingHorizontal: 10,
