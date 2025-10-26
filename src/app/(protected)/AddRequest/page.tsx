@@ -174,6 +174,7 @@ const CreateRequestScreen = () => {
     setLatitude(latitude);
     setLongitude(longitude);
     fetchAddressFromCoords(latitude, longitude); 
+
   };
 
   const fetchAddressByCep = useCallback(async (currentCep: string) => {
@@ -219,7 +220,6 @@ const CreateRequestScreen = () => {
   }, [cep, fetchAddressByCep]);
 
   const fetchAddressFromCoords = async (lat: number, lng: number) => {
-  
     const apiKey =
       Platform.OS === "android"
         ? process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY
@@ -229,34 +229,81 @@ const CreateRequestScreen = () => {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=pt-BR`
       );
-      console.log("env", process.env.GOOGLE_MAPS_ANDROID_API_KEY);
       const data = await response.json();
-      console.log("Geocode response:", data); 
-      if (data.status === "OK" && data.results.length > 0) {
-        const result = data.results[0];
-        let cep = "";
-        let bairro = "";
-        let logradouro = "";
+      console.log("Geocode response:", data);
 
-        result.address_components.forEach((comp: any) => {
-          if (comp.types.includes("postal_code")) cep = comp.long_name;
-          if (
-            comp.types.includes("sublocality") ||
-            comp.types.includes("sublocality_level_1") ||
-            comp.types.includes("neighborhood")
-          )
-            bairro = comp.long_name;
-          if (
-            comp.types.includes("route") ||
-            comp.types.includes("street_address")
-          )
-            logradouro = comp.long_name;
-        });
-
-        setAddress(logradouro);
-        setCep(cep);
-        setNeighborhood(bairro);
+      if (data.status !== "OK" || !data.results?.length) {
+        return;
       }
+
+   
+      const preferred =
+        data.results.find((r: any) =>
+          r.address_components.some((c: any) =>
+            c.types.includes("route") || c.types.includes("street_address")
+          )
+        ) || data.results[0];
+
+ 
+      let cep = "";
+      for (const r of data.results) {
+        for (const comp of r.address_components) {
+          if (comp.types.includes("postal_code") && comp.long_name) {
+            cep = comp.long_name;
+            break;
+          }
+        }
+        if (cep) break;
+      }
+
+      // Fallback: extrair CEP do formatted_address via regex
+      if (!cep) {
+        const fa = (preferred.formatted_address || "").replace(/\s+/g, " ");
+        const m = fa.match(/\b\d{5}-\d{3}\b/);
+        if (m) cep = m[0];
+      }
+
+      // Extrair logradouro e bairro do result preferido
+      let logradouro = "";
+      let bairro = "";
+      for (const comp of preferred.address_components) {
+        if (comp.types.includes("route")) logradouro = comp.long_name;
+        if (comp.types.includes("street_number") && comp.long_name) {
+          logradouro = logradouro ? `${logradouro}, ${comp.long_name}` : comp.long_name;
+        }
+        if (
+          comp.types.includes("neighborhood") ||
+          comp.types.includes("sublocality") ||
+          comp.types.includes("sublocality_level_1")
+        ) {
+          bairro = comp.long_name;
+        }
+        if (!bairro && comp.types.includes("locality")) {
+          bairro = comp.long_name;
+        }
+      }
+
+      // Se ainda não tiver bairro, procurar em outros resultados
+      if (!bairro) {
+        for (const r of data.results) {
+          for (const comp of r.address_components) {
+            if (
+              comp.types.includes("neighborhood") ||
+              comp.types.includes("sublocality") ||
+              comp.types.includes("sublocality_level_1")
+            ) {
+              bairro = comp.long_name;
+              break;
+            }
+          }
+          if (bairro) break;
+        }
+      }
+
+      // Atualiza estados (usar strings vazias como fallback)
+      setAddress(logradouro || preferred.formatted_address || "");
+      setCep(cep || "");
+      setNeighborhood(bairro || "");
     } catch (error) {
       Alert.alert("Erro", "Não foi possível obter o endereço pelo mapa.");
     }

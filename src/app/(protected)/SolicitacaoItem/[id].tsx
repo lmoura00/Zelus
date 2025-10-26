@@ -183,6 +183,40 @@ export default function SolicitacaoItemDetails() {
     },
   });
 
+  const deleteFileMutation = useMutation<any, AxiosError, { publicId?: string }>(
+    {
+      mutationFn: async ({ publicId }) => {
+        if (!token) throw new Error("Token de autenticação não disponível.");
+
+        if (publicId) {
+          try {
+            const res = await authenticatedRequest('DELETE', `/files/${publicId}`);
+            return res.data;
+          } catch (err) {
+            /* fallthrough para tentar outro endpoint */
+          }
+        }
+
+        if (postId !== undefined) {
+          const res = await authenticatedRequest('DELETE', `/post/${postId}/file`);
+          return res.data;
+        }
+
+        throw new Error('Não foi possível determinar endpoint para exclusão do arquivo.');
+      },
+      onSuccess: () => {
+        Alert.alert('Sucesso', 'Arquivo removido.');
+        queryClient.invalidateQueries(['postDetails', postId]);
+        queryClient.invalidateQueries(['posts']);
+        queryClient.invalidateQueries(['userPosts']);
+        refetch();
+      },
+      onError: (err) => {
+        Alert.alert('Erro', `Falha ao excluir arquivo: ${err.response?.data?.message || err.message}`);
+      },
+    }
+  );
+
   const handleEditPost = useCallback(() => {
     if (postDetails) {
       router.push(`/EditRequest/${postDetails.id}`);
@@ -209,6 +243,23 @@ export default function SolicitacaoItemDetails() {
       ]
     );
   }, [postDetails, deletePostMutation]);
+
+  const handleDeleteFile = useCallback(() => {
+    if (!postDetails) return;
+    Alert.alert(
+      'Remover imagem',
+      'Deseja remover a imagem anexada a esta solicitação?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: () =>
+            deleteFileMutation.mutate({ publicId: postDetails.publicId }),
+        },
+      ]
+    );
+  }, [postDetails, deleteFileMutation]);
 
   const handlePostComment = useCallback(() => {
     if (!newCommentText.trim()) {
@@ -300,6 +351,11 @@ export default function SolicitacaoItemDetails() {
           {images.length > 0 && images[currentImageIndex] ? (
             <>
               <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
+              {isOwner && postDetails?.publicUrl && (
+                <TouchableOpacity style={styles.deleteImageButton} onPress={handleDeleteFile} disabled={deleteFileMutation.isLoading}>
+                  <Feather name="trash-2" size={18} color="#D25A5A" />
+                </TouchableOpacity>
+              )}
               {images.length > 1 && (
                 <>
                   <TouchableOpacity style={styles.arrowButtonLeft} onPress={goToPreviousImage}>
@@ -969,5 +1025,19 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     marginRight: 10,
+  },
+  deleteImageButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 8,
+    borderRadius: 20,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 6,
   },
 });
